@@ -1,0 +1,32 @@
+{
+  "name": "@shveyka/db",
+  "version": "0.1.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "db:generate": "drizzle-kit generate",
+    "db:push": "drizzle-kit push",
+    "db:studio": "drizzle-kit studio",
+    "seed": "tsx src/seed.ts",
+    "seed:fresh": "tsx src/seed.ts --fresh",
+    "lint": "eslint src/",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@shveyka/core": "workspace:*",
+    "drizzle-orm": "^0.36.0",
+    "pg": "^8.13.0",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/pg": "^8.11.0",
+    "dotenv": "^16.4.0",
+    "drizzle-kit": "^0.27.0",
+    "tsx": "^4.19.0",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}
