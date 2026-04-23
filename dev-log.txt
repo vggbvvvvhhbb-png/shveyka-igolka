@@ -1,0 +1,26 @@
+
+> shveyka@0.1.0 dev C:\Shveyka
+> turbo run dev --filter=@shveyka/web
+
+• turbo 2.9.6
+
+   • Packages in scope: @shveyka/web
+   • Running dev in 1 packages
+   • Remote caching disabled
+
+@shveyka/web:dev: cache bypass, force executing d8322a69dbff6216
+@shveyka/web:dev: 
+@shveyka/web:dev: > @shveyka/web@0.1.0 dev C:\Shveyka\apps\web
+@shveyka/web:dev: > next dev
+@shveyka/web:dev: 
+@shveyka/web:dev:    ▲ Next.js 15.5.15
+@shveyka/web:dev:    - Local:        http://localhost:3000
+@shveyka/web:dev:    - Network:      http://26.7.62.169:3000
+@shveyka/web:dev:    - Environments: .env.local
+@shveyka/web:dev: 
+@shveyka/web:dev:  ✓ Starting...
+@shveyka/web:dev:  ✓ Ready in 1956ms
+@shveyka/web:dev:  ○ Compiling / ...
+@shveyka/web:dev:  ✓ Compiled / in 3.1s (747 modules)
+@shveyka/web:dev:  GET / 200 in 4276ms
+@shveyka/web:dev:  GET / 200 in 149ms
