@@ -24,3 +24,19 @@
 @shveyka/web:dev:  ✓ Compiled / in 3.1s (747 modules)
 @shveyka/web:dev:  GET / 200 in 4276ms
 @shveyka/web:dev:  GET / 200 in 149ms
+@shveyka/web:dev:  ✓ Compiled in 178ms (227 modules)
+@shveyka/web:dev:  ✓ Compiled in 144ms (227 modules)
+@shveyka/web:dev:  GET / 200 in 587ms
+@shveyka/web:dev:  GET / 200 in 458ms
+@shveyka/web:dev:  ✓ Compiled in 97ms (227 modules)
+@shveyka/web:dev:  GET / 200 in 135ms
+@shveyka/web:dev:  ✓ Compiled in 124ms (227 modules)
+@shveyka/web:dev:  GET / 200 in 142ms
+@shveyka/web:dev:  ✓ Compiled in 104ms (227 modules)
+@shveyka/web:dev:  GET / 200 in 134ms
+@shveyka/web:dev:  ✓ Compiled in 892ms (800 modules)
+@shveyka/web:dev:  GET / 200 in 289ms
+@shveyka/web:dev:  ✓ Compiled in 289ms (814 modules)
+@shveyka/web:dev:  GET / 200 in 265ms
+@shveyka/web:dev:  ✓ Compiled in 266ms (652 modules)
+@shveyka/web:dev:  GET / 200 in 185ms
