@@ -40,3 +40,48 @@
 @shveyka/web:dev:  GET / 200 in 265ms
 @shveyka/web:dev:  ✓ Compiled in 266ms (652 modules)
 @shveyka/web:dev:  GET / 200 in 185ms
+@shveyka/web:dev:  ✓ Compiled in 184ms (239 modules)
+@shveyka/web:dev:  ✓ Compiled in 152ms (239 modules)
+@shveyka/web:dev:  GET / 200 in 155ms
+@shveyka/web:dev:  GET / 200 in 31ms
+@shveyka/web:dev:  ✓ Compiled in 97ms (239 modules)
+@shveyka/web:dev:  GET / 200 in 55ms
+@shveyka/web:dev:  ✓ Compiled in 107ms (239 modules)
+@shveyka/web:dev:  ✓ Compiled in 164ms (239 modules)
+@shveyka/web:dev:  GET / 200 in 159ms
+@shveyka/web:dev:  GET / 200 in 32ms
+@shveyka/web:dev:  ✓ Compiled in 115ms (239 modules)
+@shveyka/web:dev:  GET / 200 in 30ms
+@shveyka/web:dev:  ✓ Compiled in 128ms (239 modules)
+@shveyka/web:dev:  GET / 200 in 33ms
+@shveyka/web:dev:  ✓ Compiled in 115ms (239 modules)
+@shveyka/web:dev:  GET / 200 in 70ms
+@shveyka/web:dev:  ✓ Compiled in 84ms (239 modules)
+@shveyka/web:dev:  GET / 200 in 84ms
+@shveyka/web:dev:  ✓ Compiled in 93ms (239 modules)
+@shveyka/web:dev:  GET / 200 in 47ms
+@shveyka/web:dev:  ✓ Compiled in 82ms (239 modules)
+@shveyka/web:dev:  GET / 200 in 31ms
+@shveyka/web:dev:  ✓ Compiled in 89ms (239 modules)
+@shveyka/web:dev:  GET / 200 in 32ms
+@shveyka/web:dev:  ✓ Compiled in 87ms (239 modules)
+@shveyka/web:dev:  GET / 200 in 28ms
+@shveyka/web:dev:  ✓ Compiled in 84ms (239 modules)
+@shveyka/web:dev:  GET / 200 in 53ms
+@shveyka/web:dev:  ✓ Compiled in 100ms (239 modules)
+@shveyka/web:dev:  GET / 200 in 37ms
+@shveyka/web:dev:  ✓ Compiled in 122ms (239 modules)
+@shveyka/web:dev:  GET / 200 in 147ms
+@shveyka/web:dev:  ✓ Compiled in 360ms (638 modules)
+@shveyka/web:dev:  GET / 200 in 147ms
+@shveyka/web:dev:  ✓ Compiled in 87ms (239 modules)
+@shveyka/web:dev:  GET / 200 in 34ms
+@shveyka/web:dev:  ✓ Compiled in 103ms (239 modules)
+@shveyka/web:dev:  GET / 200 in 149ms
+@shveyka/web:dev:  ✓ Compiled in 339ms (638 modules)
+@shveyka/web:dev:  GET / 200 in 102ms
+@shveyka/web:dev:  ✓ Compiled in 115ms (239 modules)
+@shveyka/web:dev:  GET / 200 in 35ms
+@shveyka/web:dev:  ✓ Compiled in 150ms (239 modules)
+@shveyka/web:dev:  GET / 200 in 100ms
+@shveyka/web:dev:  ✓ Compiled in 154ms (638 modules)
