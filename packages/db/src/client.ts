@@ -8,11 +8,14 @@ export type DatabaseClient = ReturnType<typeof createDbClient>;
  * Creates a typed Drizzle ORM client backed by a pg Pool.
  */
 export function createDbClient(connectionString: string) {
+  const isDev = process.env.NODE_ENV !== "production";
   const pool = new Pool({
     connectionString,
     max: 10,
-    idleTimeoutMillis: 30_000,
+    min: isDev ? 2 : 2,
+    idleTimeoutMillis: isDev ? 10_000 : 30_000,
     connectionTimeoutMillis: 10_000,
+    keepAlive: true,
     ssl: { rejectUnauthorized: false },
   });
 

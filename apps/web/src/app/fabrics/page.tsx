@@ -1,6 +1,6 @@
-import { getDbSingleton, queries } from "@shveyka/db";
 import { FabricFilters } from "@/components/FabricFilters";
 import { FabricCard } from "@/components/FabricCard";
+import { getFabricsPageData } from "@/lib/fabricsPageData";
 
 export const dynamic = "force-dynamic";
 
@@ -18,19 +18,12 @@ export default async function FabricsPage({
 
   const filters = {
     category: params.category,
-    weight: params.weight as
-      | "light"
-      | "medium"
-      | "heavy"
-      | "very_heavy"
-      | undefined,
+    weight: params.weight as "light" | "medium" | "heavy" | "very_heavy" | undefined,
     stretch: params.stretch,
     q: params.q,
   };
 
-  const db = getDbSingleton();
-  const fabrics = await queries.searchFabrics(db, filters);
-  const total = await queries.countFabrics(db, filters);
+  const { fabrics, total } = await getFabricsPageData(filters);
 
   return (
     <div className="space-y-6">
@@ -44,9 +37,7 @@ export default async function FabricsPage({
       {fabrics.length === 0 ? (
         <div className="text-center py-12">
           <p className="text-2xl mb-2">🔍</p>
-          <p className="text-stone-600">
-            Ничего не найдено. Попробуйте изменить фильтры.
-          </p>
+          <p className="text-stone-600">Ничего не найдено. Попробуйте изменить фильтры.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">

@@ -85,3 +85,7 @@
 @shveyka/web:dev:  ✓ Compiled in 150ms (239 modules)
 @shveyka/web:dev:  GET / 200 in 100ms
 @shveyka/web:dev:  ✓ Compiled in 154ms (638 modules)
+@shveyka/web:dev:  ✓ Compiled in 983ms (239 modules)
+@shveyka/web:dev:  ✓ Compiled in 155ms (239 modules)
+@shveyka/web:dev:  ✓ Compiled in 172ms (239 modules)
+@shveyka/web:dev:  ✓ Compiled in 162ms (239 modules)
