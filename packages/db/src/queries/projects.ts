@@ -1,7 +1,8 @@
-import { eq, inArray } from "drizzle-orm";
+import { asc, eq, inArray } from "drizzle-orm";
 import type { DatabaseClient } from "../client";
 import { projects, seams, fabrics } from "../schema";
 import type { Difficulty, Seam, Fabric } from "@shveyka/core";
+import { withRetry } from "../utils/withRetry";
 
 export type Project = typeof projects.$inferSelect;
 
@@ -56,4 +57,11 @@ export async function getProjectWithResolvedRefs(
     resolvedSeams: resolvedSeams as unknown as Seam[],
     resolvedFabrics: resolvedFabrics as unknown as Fabric[],
   };
+}
+
+/**
+ * List all projects ordered by name.
+ */
+export async function listProjects(db: DatabaseClient): Promise<Project[]> {
+  return withRetry(() => db.select().from(projects).orderBy(asc(projects.name)));
 }
