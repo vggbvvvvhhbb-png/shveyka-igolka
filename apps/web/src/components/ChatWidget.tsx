@@ -1,0 +1,154 @@
+"use client";
+
+import Link from "next/link";
+import { useState, type FormEvent, type ReactNode } from "react";
+
+type Message = { role: "user" | "assistant"; content: string };
+
+const MAX_MESSAGES = 10;
+const MAX_INPUT = 1000;
+const LINK_PATTERN = /\[([^\]]+)\]\((\/(?:fabrics|seams|projects)\/[a-z0-9-]+)\)/g;
+
+/**
+ * Превращает ссылки вида [название](/fabrics/slug) в next/link.
+ * Остальной текст выводится как есть (React экранирует его сам).
+ */
+function renderContent(text: string): ReactNode[] {
+  const nodes: ReactNode[] = [];
+  let last = 0;
+  let key = 0;
+  for (const match of text.matchAll(LINK_PATTERN)) {
+    const index = match.index ?? 0;
+    if (index > last) nodes.push(text.slice(last, index));
+    nodes.push(
+      <Link
+        key={`link-${key++}`}
+        href={match[2]}
+        className="underline underline-offset-2 hover:text-stone-600"
+      >
+        {match[1]}
+      </Link>
+    );
+    last = index + match[0].length;
+  }
+  if (last < text.length) nodes.push(text.slice(last));
+  return nodes;
+}
+
+export function ChatWidget() {
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function send(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const text = input.trim();
+    if (loading || !text) return;
+
+    const userMessage: Message = { role: "user", content: text };
+    const history: Message[] = [...messages, userMessage].slice(-MAX_MESSAGES);
+    setMessages([...history, { role: "assistant", content: "" }]);
+    setInput("");
+    setLoading(true);
+    setError(null);
+
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: history }),
+      });
+
+      if (!res.ok || !res.body) {
+        const data = (await res.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(data?.error ?? "Не удалось получить ответ, попробуйте позже");
+      }
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const chunk = decoder.decode(value, { stream: true });
+        setMessages((prev) => {
+          const copy = [...prev];
+          const last = copy[copy.length - 1];
+          copy[copy.length - 1] = { ...last, content: last.content + chunk };
+          return copy;
+        });
+      }
+    } catch (err) {
+      const msg =
+        err instanceof Error ? err.message : "Не удалось получить ответ, попробуйте позже";
+      setError(msg);
+      setMessages((prev) => prev.slice(0, -1));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function onInputChange(value: string) {
+    setInput(value.slice(0, MAX_INPUT));
+    if (error) setError(null);
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-2xl border border-stone-200 bg-white p-4 min-h-[320px] space-y-3">
+        {messages.length === 0 && (
+          <p className="text-stone-500">
+            Спросите про ткань, шов или проект. Ответы опираются только на каталог Швейки.
+          </p>
+        )}
+        {messages.map((m, i) => (
+          <div
+            key={i}
+            className={
+              m.role === "user"
+                ? "ml-auto max-w-[85%] rounded-2xl bg-stone-900 px-4 py-2 text-white whitespace-pre-wrap"
+                : "mr-auto max-w-[85%] rounded-2xl bg-stone-100 px-4 py-2 text-stone-800 whitespace-pre-wrap leading-relaxed"
+            }
+          >
+            {m.role === "assistant" ? renderContent(m.content) : m.content}
+          </div>
+        ))}
+      </div>
+
+      {error && (
+        <p role="alert" className="text-sm text-red-700">
+          {error}
+        </p>
+      )}
+
+      <form onSubmit={send} className="space-y-2">
+        <textarea
+          value={input}
+          onChange={(e) => onInputChange(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              e.currentTarget.form?.requestSubmit();
+            }
+          }}
+          maxLength={MAX_INPUT}
+          rows={3}
+          placeholder="Спросите про ткань, шов или проект…"
+          className="w-full rounded-2xl border border-stone-300 bg-white p-3 text-stone-800 focus:outline-none focus:border-stone-500"
+        />
+        <div className="flex items-center justify-between">
+          <span className="text-sm text-stone-500">
+            {input.length} / {MAX_INPUT}
+          </span>
+          <button
+            type="submit"
+            disabled={loading || input.trim().length === 0}
+            className="rounded-full bg-stone-900 px-5 py-2 text-white disabled:opacity-40 hover:bg-stone-700"
+          >
+            {loading ? "Думаю…" : "Отправить"}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
