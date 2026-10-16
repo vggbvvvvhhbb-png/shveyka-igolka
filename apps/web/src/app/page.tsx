@@ -14,7 +14,6 @@ const sections = [
     href: "/seams",
     linkText: "Посмотреть каталог →",
     active: true,
-    // TODO: страница /seams появится в Phase 4
   },
   {
     title: "Проекты",

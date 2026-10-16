@@ -1,9 +1,17 @@
-import { eq, sql } from "drizzle-orm";
+import { asc, eq, sql } from "drizzle-orm";
 import type { DatabaseClient } from "../client";
 import { seams, fabrics } from "../schema";
 import type { SeamType } from "@shveyka/core";
+import { withRetry } from "../utils/withRetry";
 
 export type Seam = typeof seams.$inferSelect;
+
+/**
+ * List all seams ordered by name.
+ */
+export async function listSeams(db: DatabaseClient): Promise<Seam[]> {
+  return withRetry(() => db.select().from(seams).orderBy(asc(seams.name)));
+}
 
 /**
  * Get a single seam by its slug id.
