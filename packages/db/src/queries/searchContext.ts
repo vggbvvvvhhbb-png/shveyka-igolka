@@ -6,6 +6,7 @@ import {
   hasMeasurements,
   matchesSearchTerm,
   normalizeSearchText,
+  rankByTier,
 } from "@shveyka/core";
 import { searchFabricsByKeywords } from "./fabrics";
 import { listSeams } from "./seams";
@@ -29,10 +30,26 @@ const STOP_WORDS = new Set([
   "есть",
   "нужно",
   "можно",
+  // Общие слова ничего не различают в каталоге, а место в контексте занимают.
+  // «Ткань» совпадало с названиями «Костюмная стрейч-ткань» и «Подкладочная
+  // ткань»: в контекст попадали ткани, о которых не спрашивали.
+  "ткань",
+  "материал",
+  "изделие",
+  "вещь",
 ]);
 
 const MAX_PER_KIND = 8;
 const MAX_FABRICS = 4;
+
+/**
+ * Сколько кандидатов берём из базы, прежде чем отобрать лучшие.
+ *
+ * Запрос может совпасть с несколькими тканями по-разному: «Лён» назван прямо,
+ * а «Хлопок-стрейч» упомянут в тексте ухода. В контекст должны попасть те,
+ * что названы прямо, поэтому берём с запасом и отбираем сами.
+ */
+const FABRIC_CANDIDATES = 12;
 
 /**
  * Извлекает значимые слова запроса: нижний регистр, без коротких и стоп-слов.
@@ -98,7 +115,19 @@ export async function searchContext(db: DatabaseClient, query: string): Promise<
 
   // Ткани — один запрос по всем ключевым словам сразу. Совпадение по названию
   // приоритетнее совпадения по алиасу или составу, дедупликация — по id.
-  const fabricRows = await withRetry(() => searchFabricsByKeywords(db, keywords, MAX_FABRICS));
+  const fabricCandidates = await withRetry(() =>
+    searchFabricsByKeywords(db, keywords, FABRIC_CANDIDATES)
+  );
+
+  // Среди найденных первыми идут записи, названные прямо, — только они
+  // отвечают на вопрос. Совпадения по составу и по свободным текстам — ниже.
+  const fabricRows = rankByTier(fabricCandidates, keywords, (fabric) => ({
+    name: fabric.name,
+    aliases: fabric.aliases as string[],
+    composition: fabric.composition,
+    care: fabric.care_instructions,
+    issues: fabric.common_issues as string[],
+  })).slice(0, MAX_FABRICS);
 
   const allSeams = await listSeams(db);
   const seamRows = allSeams

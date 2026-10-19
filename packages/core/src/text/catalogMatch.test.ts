@@ -49,17 +49,17 @@ describe("matchTier", () => {
 
 describe("rankByTier", () => {
   it("ставит записи, найденные по названию, впереди", () => {
-    const result = rankByTier([SUITING, LINEN], ["лен"]);
+    const result = rankByTier([SUITING, LINEN], ["лен"], (item) => item);
     expect(result.map((item) => item.name)).toEqual(["Лён"]);
   });
 
   it("состав идёт раньше свободного текста", () => {
-    const result = rankByTier([LINEN, SUITING], ["эластан"]);
+    const result = rankByTier([LINEN, SUITING], ["эластан"], (item) => item);
     expect(result.map((item) => item.name)).toEqual(["Костюмная стрейч-ткань"]);
   });
 
   it("не совпавшие записи отбрасываются", () => {
-    const result = rankByTier([SUITING, LINEN], ["шёлк"]);
+    const result = rankByTier([SUITING, LINEN], ["шёлк"], (item) => item);
     expect(result).toEqual([]);
   });
 });

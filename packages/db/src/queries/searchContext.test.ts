@@ -9,10 +9,17 @@ import { AssistantContextSchema } from "@shveyka/core";
 describe("extractKeywords", () => {
   it("lowercases, drops short words and stop words", () => {
     const keywords = extractKeywords("Какую ткань взять для летнего платья?");
-    expect(keywords).toContain("ткань");
     expect(keywords).toContain("летнего");
     expect(keywords).not.toContain("для");
     expect(keywords).not.toContain("какую");
+  });
+
+  it("убирает общие слова, которые ничего не различают в каталоге", () => {
+    // «Ткань» совпадало с названиями «Костюмная стрейч-ткань» и «Подкладочная
+    // ткань»: в контекст попадали ткани, о которых не спрашивали.
+    const keywords = extractKeywords("Какую ткань взять для летнего платья?");
+    expect(keywords).not.toContain("ткань");
+    expect(keywords).not.toContain("ткан");
   });
 
   it("adds a stem so that case forms match the nominative fabric name", () => {
@@ -69,7 +76,8 @@ describe("searchContext with pglite", () => {
         ('satin-silk', 'Атлас', '["атлас шёлковый"]', 'Шёлк 100%', 'natural', 'light', 60, 100, 'none', 5, true, '["lining"]', '{}', '[]', 'advanced', 'Ручная стирка', '[]'),
         ('crepe', 'Креп', '["креп-шифон", "креповый шифон"]', 'Полиэстер 100%', 'synthetic', 'light', 80, 120, 'medium', 3, false, '["dress_summer"]', '{}', '[]', 'advanced', 'Ручная стирка', '[]'),
         ('wool-coat', 'Костюмная шерсть', '["костюмка", "шерсть костюмная"]', 'Шерсть 80%', 'natural', 'heavy', 250, 400, 'low', 6, true, '["blazer"]', '{}', '[]', 'intermediate', 'Химчистка', '[]'),
-        ('cotton-jersey', 'Хлопок трикотажный', '["хлопок"]', 'Хлопок 95%, эластан 5%', 'blend', 'medium', 130, 180, 'high', 3, true, '["dress_summer"]', '{}', '[]', 'beginner', 'Стирка при 30°C', '[]')
+        ('cotton-jersey', 'Хлопок трикотажный', '["хлопок"]', 'Хлопок 95%, эластан 5%', 'blend', 'medium', 130, 180, 'high', 3, true, '["dress_summer"]', '{}', '[]', 'beginner', 'Стирка при 30°C', '[]'),
+        ('suiting-stretch', 'Костюмная стрейч-ткань', '["костюмная стрейч"]', 'Полиэстер 95%, эластан 5%', 'blend', 'medium', 180, 220, 'low', 3, true, '["pants_simple"]', '{}', '[]', 'intermediate', 'Стирка при 40°C, быстрая сушка', '[]')
     `);
 
     await client.exec(`
@@ -157,6 +165,12 @@ describe("searchContext with pglite", () => {
     await client.exec(`
       INSERT INTO projects (id, name, category, garment_type, difficulty, estimated_time_hours, fabric_amount_formula, seam_allowances, materials, required_seams, final_checklist)
       VALUES ('skirt-elastic-waist', 'Юбка на резинке', 'clothing', 'skirt_elastic', 'beginner', '[2, 4]', 'length + 15', '{}', '{}', '["straight-seam"]', '["Швы ровные"]')
+    `);
+
+    // Название начинается со «шт…» — запрос «шить» не должен его находить.
+    await client.exec(`
+      INSERT INTO projects (id, name, category, garment_type, difficulty, estimated_time_hours, fabric_amount_formula, seam_allowances, materials, required_seams, final_checklist)
+      VALUES ('curtains-loop', 'Шторы на шторной ленте', 'home_textile', 'curtains', 'beginner', '[2, 4]', 'width * 2', '{}', '{}', '[]', '["Швы ровные"]')
     `);
 
     await client.exec(`
@@ -266,5 +280,17 @@ describe("searchContext with pglite", () => {
     // В каталоге записано «атлас шёлковый», пользователь пишет «шелковый».
     const ctx = await searchContext(db, "атлас шелковый");
     expect(ctx.fabrics.map((f) => f.slug)).toContain("satin-silk");
+  });
+
+  it("не путает «шить» с «шторы»", async () => {
+    // «шить» и «шторы» различаются одной буквой, но это разные слова.
+    const ctx = await searchContext(db, "как шить");
+    expect(ctx.projects.map((p) => p.slug)).not.toContain("curtains-loop");
+  });
+
+  it("общее слово «ткань» не тянет в контекст ткани из-за названия", async () => {
+    // «Костюмная стрейч-ткань» совпадала с запросом только по слову «ткань».
+    const ctx = await searchContext(db, "какую ткань взять для платья");
+    expect(ctx.fabrics.map((f) => f.slug)).not.toContain("suiting-stretch");
   });
 });

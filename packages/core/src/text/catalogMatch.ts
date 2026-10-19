@@ -50,10 +50,17 @@ export function matchTier(item: SearchableItem, keywords: string[]): MatchTier |
  *
  * Порядок внутри одного уровня сохраняется — записи уже отсортированы
  * запросом к базе, и переставлять их незачем.
+ *
+ * Функция принимает любые записи: в базе поля называются иначе, чем в
+ * каталоге, поэтому вид записи задаётся проекцией toSearchable.
  */
-export function rankByTier<T extends SearchableItem>(items: T[], keywords: string[]): T[] {
+export function rankByTier<T>(
+  items: T[],
+  keywords: string[],
+  toSearchable: (item: T) => SearchableItem
+): T[] {
   return items
-    .map((item, index) => ({ item, index, tier: matchTier(item, keywords) }))
+    .map((item, index) => ({ item, index, tier: matchTier(toSearchable(item), keywords) }))
     .filter((entry) => entry.tier !== null)
     .sort((a, b) => (a.tier ?? 9) - (b.tier ?? 9) || a.index - b.index)
     .map((entry) => entry.item);

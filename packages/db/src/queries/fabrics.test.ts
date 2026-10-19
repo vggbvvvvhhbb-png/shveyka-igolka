@@ -262,3 +262,64 @@ describe("поиск тканей с «ё» и «е»", () => {
     expect(result[0].id).toBe("silk-natural");
   });
 });
+
+describe("поиск тканей без ложных совпадений", () => {
+  // Свободные тексты ухода пестрят словами, в которых «лен» прячется внутри
+  // слова: «расправленном», «медленно», «усиленных». Совпадение с такими
+  // словами — мусор, поэтому в уходе ищется целое слово.
+  let db: DatabaseClient;
+
+  beforeAll(async () => {
+    const client = new PGlite();
+    db = drizzle(client, { schema }) as unknown as DatabaseClient;
+
+    await client.exec(`
+      CREATE TABLE fabrics (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        aliases JSONB NOT NULL DEFAULT '[]',
+        composition TEXT NOT NULL,
+        category TEXT NOT NULL,
+        weight_class TEXT NOT NULL,
+        density_min_gsm INTEGER NOT NULL,
+        density_max_gsm INTEGER NOT NULL,
+        stretch TEXT NOT NULL,
+        shrinkage_percent INTEGER NOT NULL,
+        requires_decatizing BOOLEAN NOT NULL,
+        suitable_for JSONB NOT NULL DEFAULT '[]',
+        default_machine_settings JSONB NOT NULL DEFAULT '{}',
+        recommended_edge_finish JSONB NOT NULL DEFAULT '[]',
+        difficulty_to_work_with TEXT NOT NULL,
+        care_instructions TEXT NOT NULL,
+        common_issues JSONB NOT NULL DEFAULT '[]',
+        photo_url TEXT,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
+
+    await client.exec(`
+      INSERT INTO fabrics (id, name, aliases, composition, category, weight_class, density_min_gsm, density_max_gsm, stretch, shrinkage_percent, requires_decatizing, suitable_for, default_machine_settings, recommended_edge_finish, difficulty_to_work_with, care_instructions, common_issues)
+      VALUES
+        ('linen-natural', 'Лён', '["лён", "linen"]', '100% лен', 'natural', 'medium', 150, 200, 'none', 7, true, '[]', '{}', '[]', 'intermediate', 'Стирка при 40°C, сушить в расправленном виде', '["Срезы сыплются"]'),
+        ('tulle', 'Сетка/Тюль', '["тюль"]', 'Полиэстер 100%', 'synthetic', 'light', 30, 50, 'none', 0, false, '[]', '{}', '[]', 'advanced', 'Стирка при 30°C, сушить в расправленном виде', '[]'),
+        ('jersey-single', 'Трикотаж кулирная гладь', '["кулирка"]', 'Хлопок 92% / эластан 8%', 'blend', 'medium', 140, 180, 'high', 3, true, '[]', '{}', '[]', 'intermediate', 'Стирка при 30°C', '[]')
+    `);
+  });
+
+  it("слово внутри другого слова не считается совпадением", async () => {
+    // «лен» прячется в «расправленном» — по уходу ткань не находится.
+    const result = await searchFabrics(db, { q: "лен" });
+    expect(result.map((r) => r.id)).toEqual(["linen-natural"]);
+  });
+
+  it("целое слово в уходе находится", async () => {
+    const result = await searchFabrics(db, { q: "стирка" });
+    expect(result.map((r) => r.id).sort()).toEqual(["jersey-single", "linen-natural", "tulle"]);
+  });
+
+  it("находит ткань по слову в конце названия", async () => {
+    const result = await searchFabrics(db, { q: "гладь" });
+    expect(result.map((r) => r.id)).toEqual(["jersey-single"]);
+  });
+});

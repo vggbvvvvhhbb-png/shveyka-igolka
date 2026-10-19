@@ -2,7 +2,7 @@ import { eq, and, sql, count, asc, type SQL, type SQLChunk } from "drizzle-orm";
 import type { DatabaseClient } from "../client";
 import { fabrics } from "../schema";
 import type { WeightClass } from "@shveyka/core";
-import { normalizeSearchText, searchSkeleton } from "@shveyka/core";
+import { escapeRegExp, searchSkeleton, splitWords } from "@shveyka/core";
 import { withRetry } from "../utils/withRetry";
 
 export type Fabric = typeof fabrics.$inferSelect;
@@ -67,8 +67,8 @@ type SearchField = (typeof SEARCH_FIELDS)[number];
 /**
  * Поля, по которым допускается приближённое совпадение по «скелету» слова.
  *
- * Только те, что называют саму ткань: в свободных текстах вроде ухода или
- * типичных проблем приближённое совпадение даёт слишком много шума.
+ * Только те, что называют саму ткань: в свободных текстах вроде ухода
+ * приближённое совпадение даёт слишком много шума.
  */
 const IDENTITY_FIELDS: readonly SearchField[] = ["name", "aliases"];
 
@@ -82,6 +82,15 @@ const MIN_APPROXIMATE_LENGTH = 3;
 const MIN_SKELETON_LENGTH = 2;
 
 /**
+ * Минимальная длина «скелета» запроса, с которой допускается совпадение,
+ * когда слово каталога длиннее запроса.
+ *
+ * «шить» и «шторы» различаются одной буквой, но скелеты у них разные:
+ * «шт» и «штры». Короткий скелет совпал бы с любой половиной слов на «шт».
+ */
+const MIN_PREFIX_QUERY_LENGTH = 3;
+
+/**
  * Приводит значение БД к общему виду: нижний регистр, «ё» → «е», «ъ» → «ь».
  *
  * Так поиск не зависит от того, как слово записано в каталоге: «ё» и «е»
@@ -89,14 +98,6 @@ const MIN_SKELETON_LENGTH = 2;
  */
 function normalizeSql(expr: SQLChunk): SQL {
   return sql`lower(translate(${expr}, 'ёЁъЪ', 'еЕьЬ'))`;
-}
-
-/**
- * «Скелет» слова на стороне БД: согласные без мягкого знака.
- * Соответствует searchSkeleton из @shveyka/core.
- */
-function skeletonSql(expr: SQLChunk): SQL {
-  return sql`regexp_replace(${normalizeSql(expr)}, '[аеиоуыэюяь]', '', 'g')`;
 }
 
 /**
@@ -108,19 +109,20 @@ function escapeLikePattern(value: string): string {
 }
 
 /**
- * Шаблоны LIKE для одного поискового слова.
+ * Шаблоны для одного поискового слова.
  *
- * exact — совпадение по нормализованному тексту.
- * skeleton — совпадение по «скелету» слова; нужно, чтобы падежные формы
- * («льня», «льна») находили запись «Лён». null, если скелет слишком короткий.
+ * like — совпадение подстроки (название, алиасы, состав).
+ * word — тот же запрос для поиска по целому слову (уход, типичные проблемы).
+ * skeletons — скелеты слов запроса, по ним ищется падежная форма.
  */
 type TermPatterns = {
-  exact: string;
-  skeleton: string | null;
+  like: string;
+  word: string;
+  skeletons: string[];
 };
 
 /**
- * Приводит поисковые слова к экранированным паттернам. Пустые слова
+ * Приводит поисковые слова к экранированным шаблонам. Пустые слова
  * отбрасываются: по ним условие поиска строиться не должно.
  */
 function toPatterns(terms: string[]): TermPatterns[] {
@@ -130,8 +132,9 @@ function toPatterns(terms: string[]): TermPatterns[] {
     const trimmed = term.trim();
     if (trimmed.length === 0) continue;
     patterns.push({
-      exact: `%${escapeLikePattern(trimmed)}%`,
-      skeleton: buildSkeletonPattern(trimmed),
+      like: `%${escapeLikePattern(trimmed)}%`,
+      word: escapeRegExp(trimmed),
+      skeletons: buildSkeletonPatterns(trimmed),
     });
   }
 
@@ -139,39 +142,60 @@ function toPatterns(terms: string[]): TermPatterns[] {
 }
 
 /**
- * «Скелет» поискового слова для приближённого совпадения.
+ * Скелеты слов запроса: по ним ищется падежная форма слова.
  *
- * Возвращает null, если скелет слишком короткий: у коротких слов он совпал бы
- * с кем угодно. Минимум — две буквы, этого хватает для «лён» → «льня».
+ * Сравнение идёт по словам, поэтому у запроса из нескольких слов скелет
+ * считается для каждого слова отдельно. Короткие слова пропускаются:
+ * их скелет совпал бы с кем угодно.
  */
-function buildSkeletonPattern(term: string): string | null {
-  if (normalizeSearchText(term).length < MIN_APPROXIMATE_LENGTH) return null;
-  const skeleton = searchSkeleton(term);
-  if (skeleton.length < MIN_SKELETON_LENGTH) return null;
-  return skeleton;
+function buildSkeletonPatterns(term: string): string[] {
+  const skeletons: string[] = [];
+
+  for (const word of splitWords(term)) {
+    if (word.length < MIN_APPROXIMATE_LENGTH) continue;
+    const skeleton = searchSkeleton(word);
+    if (skeleton.length < MIN_SKELETON_LENGTH) continue;
+    skeletons.push(skeleton);
+  }
+
+  return skeletons;
+}
+
+/**
+ * Условие совпадения по целому слову для свободных текстов.
+ *
+ * Граница слова — любая буква: цифра и знак препинания считаются границей,
+ * поэтому «лен» найдётся в «100% лен», но не в «расправленном».
+ */
+function matchesWordSql(textExpr: SQLChunk, term: string): SQL {
+  return sql`${normalizeSql(textExpr)} ~* ('(^|[^[:alpha:]])' || lower(translate(${term}, 'ёЁъЪ', 'еЕьЬ')) || '([^[:alpha:]]|$)')`;
 }
 
 /**
  * Условие точного совпадения по одному полю: и значение поля, и шаблон
  * приводятся к общему виду, поэтому «ё» и «е» считаются одной буквой.
+ *
+ * В названии, алиасах и составе ищем подстроку — «хлоп» должен находить
+ * «хлопковый». В свободных текстах — только целое слово, иначе «лен»
+ * находил «расправленном», «медленно» и «усиленных».
  */
-function matchesExact(pattern: string, field: SearchField): SQL {
+function matchesExact(pattern: TermPatterns, field: SearchField): SQL {
   switch (field) {
     case "name":
-      return sql`${normalizeSql(fabrics.name)} ILIKE ${normalizeSql(pattern)}`;
+      return sql`${normalizeSql(fabrics.name)} ILIKE ${normalizeSql(pattern.like)}`;
     case "aliases":
       return sql`EXISTS (
         SELECT 1 FROM jsonb_array_elements_text(${fabrics.aliases}) AS alias_value
-        WHERE ${normalizeSql(sql`alias_value`)} ILIKE ${normalizeSql(pattern)}
+        WHERE ${normalizeSql(sql`alias_value`)} ILIKE ${normalizeSql(pattern.like)}
       )`;
     case "composition":
-      return sql`${normalizeSql(fabrics.composition)} ILIKE ${normalizeSql(pattern)}`;
+      return sql`${normalizeSql(fabrics.composition)} ILIKE ${normalizeSql(pattern.like)}`;
     case "care":
-      return sql`${normalizeSql(fabrics.care_instructions)} ILIKE ${normalizeSql(pattern)}`;
+      return matchesWordSql(fabrics.care_instructions, pattern.word);
     case "issues":
       return sql`EXISTS (
         SELECT 1 FROM jsonb_array_elements_text(${fabrics.common_issues}) AS issue_value
-        WHERE ${normalizeSql(sql`issue_value`)} ILIKE ${normalizeSql(pattern)}
+        WHERE ${matchesWordSql(sql`issue_value`, pattern.word)}
       )`;
   }
 }
@@ -179,30 +203,60 @@ function matchesExact(pattern: string, field: SearchField): SQL {
 /**
  * Приближённое совпадение по «скелету» слова.
  *
- * Два направления: скелет поля начинается со скелета запроса и наоборот.
- * Первое ловит падежные формы («льня» → «лён»), второе — запрос длиннее
- * записи («хлопковая» → «Хлопок»).
+ * Сравниваются слова по отдельности: скелет всей фразы начинается с первого
+ * слова, и «шт» от «шить» совпал бы с любой фразой на «шт».
+ *
+ * Два направления: скелет запроса начинается со скелета слова («льняной» →
+ * «лён») и наоборот («хлопковая» → «Хлопок»). Второе направление требует
+ * скелет запроса от трёх согласных.
  */
-function matchesSkeleton(skeleton: string, field: SearchField): SQL {
-  const pattern = `${escapeLikePattern(skeleton)}%`;
+function matchesSkeleton(skeletons: string[], field: SearchField): SQL {
+  const conditions: SQL[] = [];
 
-  switch (field) {
-    case "name":
-      return sql`(
-        ${skeletonSql(fabrics.name)} ILIKE ${pattern}
-        OR ${skeleton} ILIKE (nullif(${skeletonSql(fabrics.name)}, '') || '%')
-      )`;
-    case "aliases":
-      return sql`EXISTS (
-        SELECT 1 FROM jsonb_array_elements_text(${fabrics.aliases}) AS alias_value
-        WHERE ${skeletonSql(sql`alias_value`)} ILIKE ${pattern}
-           OR ${skeleton} ILIKE (nullif(${skeletonSql(sql`alias_value`)}, '') || '%')
-      )`;
-    default:
-      // Приближённое совпадение разрешено только для полей, которые называют
-      // саму ткань: в свободных текстах оно даёт слишком много шума.
-      return sql`false`;
+  for (const skeleton of skeletons) {
+    const wordSkeleton = sql`regexp_replace(word, '[аеиоуыэюяь]', '', 'g')`;
+
+    const branches: SQL[] = [
+      // Скелет запроса начинается со скелета слова: «льняной» → «лён».
+      sql`${skeleton} ILIKE (${wordSkeleton} || '%')`,
+    ];
+
+    if (skeleton.length >= MIN_PREFIX_QUERY_LENGTH) {
+      // Скелет слова начинается со скелета запроса: «хлопковая» → «Хлопок».
+      branches.push(sql`${wordSkeleton} ILIKE (${skeleton} || '%')`);
+    }
+
+    // Пустой скелет (слово из одних гласных) не сравниваем: он совпал бы
+    // с любым словом.
+    const wordCondition = sql.join(
+      [sql`length(${wordSkeleton}) >= ${MIN_SKELETON_LENGTH}`, ...branches],
+      sql` AND `
+    );
+
+    switch (field) {
+      case "name":
+        conditions.push(sql`EXISTS (
+          SELECT 1 FROM unnest(regexp_split_to_array(${normalizeSql(fabrics.name)}, '\s+')) AS word
+          WHERE ${wordCondition}
+        )`);
+        break;
+      case "aliases":
+        conditions.push(sql`EXISTS (
+          SELECT 1 FROM jsonb_array_elements_text(${fabrics.aliases}) AS alias_value
+          WHERE EXISTS (
+            SELECT 1 FROM unnest(regexp_split_to_array(${normalizeSql(sql`alias_value`)}, '\s+')) AS word
+            WHERE ${wordCondition}
+          )
+        )`);
+        break;
+      default:
+        // Приближённое совпадение разрешено только для полей, которые называют
+        // саму ткань: в свободных текстах оно даёт слишком много шума.
+        break;
+    }
   }
+
+  return sql.join(conditions, sql` OR `);
 }
 
 /**
@@ -210,10 +264,10 @@ function matchesSkeleton(skeleton: string, field: SearchField): SQL {
  * приближённое по «скелету» слова, если поле называет саму ткань.
  */
 function matchesTerm(pattern: TermPatterns, field: SearchField): SQL {
-  const conditions: SQL[] = [matchesExact(pattern.exact, field)];
+  const conditions: SQL[] = [matchesExact(pattern, field)];
 
-  if (pattern.skeleton && IDENTITY_FIELDS.includes(field)) {
-    conditions.push(matchesSkeleton(pattern.skeleton, field));
+  if (pattern.skeletons.length > 0 && IDENTITY_FIELDS.includes(field)) {
+    conditions.push(matchesSkeleton(pattern.skeletons, field));
   }
 
   return sql.join(conditions, sql` OR `);
