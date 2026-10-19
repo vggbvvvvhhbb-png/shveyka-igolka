@@ -6,8 +6,10 @@ import {
   checkRateLimit,
   isValidatedRequest,
   parseSSEChunk,
-  PROVIDER_URLS,
+  resolveProviderName,
+  resolveProviderUrl,
   validateChatRequest,
+  DEFAULT_RELAY_MODEL,
   type ChatMessage,
   type ChatProvider,
   type RateStore,
@@ -28,19 +30,20 @@ function getClientIp(req: Request): string {
 }
 
 function resolveProvider(): ChatProvider {
-  const providerEnv = process.env.AI_PROVIDER;
-  return providerEnv === "anthropic" || providerEnv === "openrouter" ? providerEnv : "kimi";
+  return resolveProviderName(process.env.AI_PROVIDER);
 }
 
 function getModel(provider: ChatProvider): string | null {
   if (provider === "anthropic") return process.env.ANTHROPIC_MODEL ?? null;
   if (provider === "openrouter") return process.env.OPENROUTER_MODEL ?? null;
+  if (provider === "relay") return process.env.RELAY_MODEL ?? DEFAULT_RELAY_MODEL;
   return "moonshot-v1-8k";
 }
 
 function getApiKey(provider: ChatProvider): string | undefined {
   if (provider === "anthropic") return process.env.ANTHROPIC_API_KEY;
   if (provider === "openrouter") return process.env.OPENROUTER_API_KEY;
+  if (provider === "relay") return process.env.RELAY_API_KEY;
   return process.env.KIMI_API_KEY;
 }
 
@@ -61,13 +64,18 @@ async function streamFromProvider(
           "anthropic-version": "2023-06-01",
           "content-type": "application/json",
         }
-      : {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-          "X-Title": "Shveyka",
-        };
+      : provider === "openrouter"
+        ? {
+            Authorization: `Bearer ${apiKey}`,
+            "Content-Type": "application/json",
+            "X-Title": "Shveyka",
+          }
+        : {
+            Authorization: `Bearer ${apiKey}`,
+            "Content-Type": "application/json",
+          };
 
-  return fetch(PROVIDER_URLS[provider], {
+  return fetch(resolveProviderUrl(provider, process.env.RELAY_BASE_URL), {
     method: "POST",
     headers,
     body: JSON.stringify(buildRequestBody(messages, systemPrompt, provider, model)),

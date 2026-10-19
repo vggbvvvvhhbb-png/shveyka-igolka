@@ -1,13 +1,6 @@
 import { ChatRequestSchema, type ChatMessage } from "./requestSchema";
 import { MAX_CONTEXT_SLUGS_LENGTH, MAX_TOKENS } from "./constants";
-
-export type ChatProvider = "kimi" | "anthropic" | "openrouter";
-
-export const PROVIDER_URLS: Record<ChatProvider, string> = {
-  kimi: "https://api.moonshot.ai/v1/chat/completions",
-  openrouter: "https://openrouter.ai/api/v1/chat/completions",
-  anthropic: "https://api.anthropic.com/v1/messages",
-};
+import type { ChatProvider } from "./providers";
 
 export type ValidatedRequest = { messages: ChatMessage[] };
 export type ValidationError = { error: string; issues?: string[] };
