@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getDbSingleton, queries } from "@shveyka/db";
+import { AskShveykaButton } from "@/components/AskShveykaButton";
 import type { ProjectStep } from "@shveyka/core";
 
 export const dynamic = "force-dynamic";
@@ -79,6 +80,9 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
           <span className="text-stone-600">{diff.label}</span>
         </div>
       </div>
+
+      {/* Спросить помощника об этом проекте */}
+      <AskShveykaButton question={`Как сшить проект «${project.name}» на Brother LS-200s?`} />
 
       {/* Materials and fabric amount */}
       <section className="rounded-2xl border border-stone-200 bg-stone-50 p-6 space-y-3">

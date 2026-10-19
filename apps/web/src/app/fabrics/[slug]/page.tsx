@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getDbSingleton, queries } from "@shveyka/db";
+import { AskShveykaButton } from "@/components/AskShveykaButton";
 
 export const dynamic = "force-dynamic";
 
@@ -30,11 +31,7 @@ const difficultyInfo: Record<string, { dots: string; label: string }> = {
   advanced: { dots: "●●●", label: "Сложно работать" },
 };
 
-export default async function FabricDetailPage({
-  params,
-}: {
-  params: Promise<{ slug: string }>;
-}) {
+export default async function FabricDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const db = getDbSingleton();
   const fabric = await queries.getFabricBySlug(db, slug);
@@ -59,8 +56,7 @@ export default async function FabricDetailPage({
   };
 
   const hasSeams =
-    Array.isArray(fabric.recommended_edge_finish) &&
-    fabric.recommended_edge_finish.length > 0;
+    Array.isArray(fabric.recommended_edge_finish) && fabric.recommended_edge_finish.length > 0;
 
   return (
     <div className="space-y-8 max-w-3xl mx-auto">
@@ -101,6 +97,9 @@ export default async function FabricDetailPage({
         </div>
       </div>
 
+      {/* Спросить помощника об этой ткани */}
+      <AskShveykaButton question={`Как шить из ткани «${fabric.name}» на Brother LS-200s?`} />
+
       {/* Description */}
       <section>
         <h2 className="text-xl font-semibold text-stone-900 mb-2">Описание</h2>
@@ -111,9 +110,7 @@ export default async function FabricDetailPage({
 
       {/* Machine settings */}
       <section className="rounded-2xl border border-stone-200 bg-stone-50 p-6 space-y-3">
-        <h2 className="text-xl font-semibold text-stone-900">
-          Настройки машины Brother LS-200s
-        </h2>
+        <h2 className="text-xl font-semibold text-stone-900">Настройки машины Brother LS-200s</h2>
         <dl className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-base">
           {settings.needle_type && (
             <>
@@ -129,17 +126,13 @@ export default async function FabricDetailPage({
           {settings.stitch_length_mm && (
             <>
               <dt className="text-stone-500">Длина стежка</dt>
-              <dd className="text-stone-800">
-                {settings.stitch_length_mm.join("–")} мм
-              </dd>
+              <dd className="text-stone-800">{settings.stitch_length_mm.join("–")} мм</dd>
             </>
           )}
           {settings.top_tension && (
             <>
               <dt className="text-stone-500">Натяжение нити</dt>
-              <dd className="text-stone-800">
-                {settings.top_tension.join("–")}
-              </dd>
+              <dd className="text-stone-800">{settings.top_tension.join("–")}</dd>
             </>
           )}
           {settings.presser_foot && (
@@ -159,9 +152,7 @@ export default async function FabricDetailPage({
 
       {/* Tips */}
       <section>
-        <h2 className="text-xl font-semibold text-stone-900 mb-3">
-          Советы по работе
-        </h2>
+        <h2 className="text-xl font-semibold text-stone-900 mb-3">Советы по работе</h2>
         <ul className="list-disc pl-5 space-y-2 text-stone-700 leading-relaxed">
           {fabric.common_issues.map((issue, i) => (
             <li key={i}>{issue}</li>
@@ -172,9 +163,7 @@ export default async function FabricDetailPage({
       {/* Recommended seams */}
       {hasSeams && (
         <section>
-          <h2 className="text-xl font-semibold text-stone-900 mb-3">
-            Подходящие швы
-          </h2>
+          <h2 className="text-xl font-semibold text-stone-900 mb-3">Подходящие швы</h2>
           <ul className="space-y-2">
             {fabric.recommended_edge_finish.map((seamSlug) => (
               <li key={seamSlug}>

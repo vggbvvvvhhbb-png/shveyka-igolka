@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getDbSingleton, queries } from "@shveyka/db";
+import { AskShveykaButton } from "@/components/AskShveykaButton";
 import type { SeamStep } from "@shveyka/core";
 
 export const dynamic = "force-dynamic";
@@ -95,6 +96,9 @@ export default async function SeamDetailPage({ params }: { params: Promise<{ slu
           <span className="text-stone-600">{diff.label}</span>
         </div>
       </div>
+
+      {/* Спросить помощника об этом шве */}
+      <AskShveykaButton question={`Как выполнить шов «${seam.name}» на Brother LS-200s?`} />
 
       {/* When to use */}
       <section>
