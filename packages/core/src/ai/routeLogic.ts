@@ -1,5 +1,5 @@
 import { ChatRequestSchema, type ChatMessage } from "./requestSchema";
-import { MAX_TOKENS } from "./constants";
+import { MAX_CONTEXT_SLUGS_LENGTH, MAX_TOKENS } from "./constants";
 
 export type ChatProvider = "kimi" | "anthropic" | "openrouter";
 
@@ -88,7 +88,11 @@ export function parseSSEChunk(line: string, provider: ChatProvider | string): st
     return null;
   }
 
-  const obj = json as Record<string, any>;
+  const obj = json as {
+    type?: unknown;
+    delta?: { text?: unknown };
+    choices?: Array<{ delta?: { content?: unknown } }>;
+  };
   if (provider === "anthropic") {
     if (obj?.type === "content_block_delta" && typeof obj?.delta?.text === "string") {
       return obj.delta.text;
@@ -132,7 +136,7 @@ export function buildAllowedSlugsHeader(
     seams: { slug: string }[];
     projects: { slug: string }[];
   },
-  maxLength = 2000
+  maxLength = MAX_CONTEXT_SLUGS_LENGTH
 ): string {
   const slugs = [
     ...context.fabrics.map((f) => `fabrics/${f.slug}`),

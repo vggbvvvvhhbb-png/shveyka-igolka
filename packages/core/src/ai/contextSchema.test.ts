@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { buildSystemPrompt, AssistantContextSchema, type AssistantContext } from "@shveyka/core";
+import { buildSystemPrompt } from "./systemPrompt";
+import { AssistantContextSchema, type AssistantContext } from "./contextSchema";
 
 const emptyContext: AssistantContext = { fabrics: [], seams: [], projects: [] };
 

@@ -6,9 +6,9 @@ import {
   parseSSEChunk,
   checkRateLimit,
   buildAllowedSlugsHeader,
-  MAX_TOKENS,
   type RateStore,
-} from "@shveyka/core";
+} from "./routeLogic";
+import { MAX_TOKENS } from "./constants";
 
 describe("validateChatRequest", () => {
   it("корректный запрос проходит валидацию", () => {
