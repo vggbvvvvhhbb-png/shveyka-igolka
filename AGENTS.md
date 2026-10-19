@@ -39,6 +39,7 @@ pnpm dev              # Next.js dev-сервер (turbo → apps/web)
 pnpm build            # production-сборка
 pnpm lint             # eslint по всем пакетам
 pnpm test             # vitest (все тесты сейчас в packages/db)
+pnpm typecheck        # tsc --noEmit по каждому пакету
 pnpm db:generate      # drizzle-kit generate — новая SQL-миграция
 pnpm db:push          # drizzle-kit push — применить схему к БД из DATABASE_URL
 pnpm seed             # залить сиды (upsert)
@@ -80,4 +81,10 @@ pnpm seed:fresh       # полная перезаливка сидов
   При нескольких инстансах лимит не действует — см. ограничения в отчёте.
 - **Тесты БД работают на PGlite** (`@electric-sql/pglite`), а не на pg-mem:
   это настоящий Postgres в WASM, поэтому поддерживает `jsonb_array_elements_text` и т.п.
+- **Типы маршрутов Next.js лежат в `.next/types`** и генерируются при сборке.
+  После переключения ветки там остаются файлы несуществующих маршрутов, и
+  `tsc --noEmit` падает на них. Поэтому проверку типов в `apps/web` запускают
+  через `pnpm typecheck`: скрипт `scripts/prepare-types.mjs` перегенерирует
+  общие типы (`next typegen`) и убирает устаревшие. Голый `tsc --noEmit`
+  без подготовки может ругаться на старые файлы.
 - **`docs/README.md` не редактировать** и `docs/` не удалять.
