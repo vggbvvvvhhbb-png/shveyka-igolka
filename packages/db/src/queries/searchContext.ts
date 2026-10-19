@@ -1,7 +1,7 @@
 import type { DatabaseClient } from "../client";
 import type { AssistantContext } from "@shveyka/core";
 import { AssistantContextSchema } from "@shveyka/core";
-import { searchFabrics, findFabricsByAliases } from "./fabrics";
+import { searchFabricsByKeywords } from "./fabrics";
 import { listSeams } from "./seams";
 import { listProjects } from "./projects";
 import { withRetry } from "../utils/withRetry";
@@ -50,7 +50,7 @@ function matchesAny(text: string, keywords: string[]): boolean {
 
 /**
  * Ищет релевантные записи каталога для вопроса пользователя.
- * Ткани — через searchFabrics по ключевым словам.
+ * Ткани — через searchFabricsByKeywords по ключевым словам.
  * Швы и проекты — фильтрация в JS по name и aliases/steps (объёмы каталога малы).
  */
 export async function searchContext(db: DatabaseClient, query: string): Promise<AssistantContext> {
@@ -60,38 +60,9 @@ export async function searchContext(db: DatabaseClient, query: string): Promise<
     return { fabrics: [], seams: [], projects: [] };
   }
 
-  const fabricRows = await withRetry(async () => {
-    const found: Awaited<ReturnType<typeof searchFabrics>> = [];
-    const seen = new Set<string>();
-    for (const word of keywords) {
-      const rows = await searchFabrics(db, { q: word });
-      for (const row of rows) {
-        if (!seen.has(row.id)) {
-          seen.add(row.id);
-          found.push(row);
-        }
-      }
-      if (found.length >= MAX_FABRICS) break;
-    }
-
-    // Алиасы: ищем по словам запроса (нижний регистр) и их основам,
-    // совпадения по name дедуплицируются по id. Приоритет — у searchFabrics.
-    if (found.length < MAX_FABRICS) {
-      const aliasWords = [...new Set(keywords)];
-      for (const word of aliasWords) {
-        const aliasRows = await findFabricsByAliases(db, word);
-        for (const row of aliasRows) {
-          if (!seen.has(row.id)) {
-            seen.add(row.id);
-            found.push(row);
-          }
-        }
-        if (found.length >= MAX_FABRICS) break;
-      }
-    }
-
-    return found.slice(0, MAX_FABRICS);
-  });
+  // Ткани — один запрос по всем ключевым словам сразу. Совпадение по названию
+  // приоритетнее совпадения по алиасу или составу, дедупликация — по id.
+  const fabricRows = await withRetry(() => searchFabricsByKeywords(db, keywords, MAX_FABRICS));
 
   const allSeams = await listSeams(db);
   const seamRows = allSeams

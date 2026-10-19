@@ -3,7 +3,13 @@ import { PGlite } from "@electric-sql/pglite";
 import { drizzle } from "drizzle-orm/pglite";
 import type { DatabaseClient } from "../client";
 import * as schema from "../schema";
-import { searchFabrics, countFabrics, getFabricBySlug } from "./fabrics";
+import {
+  searchFabrics,
+  countFabrics,
+  getFabricBySlug,
+  searchFabricsByKeywords,
+  searchFabricsByQuery,
+} from "./fabrics";
 
 describe("fabrics queries with pglite", () => {
   // PGlite-клиент отличается от node-postgres по типам (другая реализация HKT),
@@ -99,10 +105,63 @@ describe("fabrics queries with pglite", () => {
     expect(result[0].name).toBe("Трикотаж кулирная гладь");
   });
 
-  it("searchFabrics filters by q (ilike on name)", async () => {
+  it("searchFabrics filters by q (совпадение по названию и по составу)", async () => {
     const result = await searchFabrics(db, { q: "хлоп" });
-    expect(result.length).toBe(1);
+    expect(result.length).toBe(4);
     expect(result[0].name).toBe("Поплин хлопковый");
+  });
+
+  it("находит ткань, у которой искомое слово есть только в составе", async () => {
+    const result = await searchFabrics(db, { q: "хлопок" });
+    expect(result.map((r) => r.id)).toContain("batiste");
+  });
+
+  it("находит ткань по алиасу, которого нет в названии", async () => {
+    const result = await searchFabrics(db, { q: "кулирка" });
+    expect(result.map((r) => r.id)).toEqual(["jersey-single"]);
+  });
+
+  it("приоритет отдаёт совпадение по названию раньше совпадения по составу", async () => {
+    const result = await searchFabrics(db, { q: "хлоп" });
+    expect(result[0].id).toBe("cotton-poplin");
+    expect(result.map((r) => r.id)).not.toContain("chiffon");
+  });
+
+  it("пустой q не ограничивает выдачу", async () => {
+    const result = await searchFabrics(db, { q: "   " });
+    expect(result.length).toBe(5);
+  });
+
+  it("спецсимволы % и _ не работают как wildcards", async () => {
+    expect(await searchFabrics(db, { q: "хлоп%" })).toHaveLength(0);
+    expect(await searchFabrics(db, { q: "хлоп_" })).toHaveLength(0);
+  });
+
+  it("countFabrics совпадает с длиной выдачи searchFabrics", async () => {
+    const filters = { q: "хлоп" };
+    const [list, total] = await Promise.all([
+      searchFabrics(db, filters),
+      countFabrics(db, filters),
+    ]);
+    expect(total).toBe(list.length);
+  });
+
+  it("searchFabricsByQuery ищет по всем полям сразу", async () => {
+    const result = await searchFabricsByQuery(db, "кулирка");
+    expect(result.map((r) => r.id)).toEqual(["jersey-single"]);
+  });
+
+  it("searchFabricsByKeywords принимает несколько слов и не дублирует записи", async () => {
+    const result = await searchFabricsByKeywords(db, ["хлоп", "батист"]);
+    expect(result.length).toBe(4);
+    expect(new Set(result.map((r) => r.id)).size).toBe(4);
+    // Совпадения по названию идут раньше совпадений только по составу.
+    expect(
+      result
+        .slice(0, 2)
+        .map((r) => r.id)
+        .sort()
+    ).toEqual(["batiste", "cotton-poplin"]);
   });
 
   it("searchFabrics with combined filters", async () => {

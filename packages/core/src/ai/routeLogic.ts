@@ -1,5 +1,5 @@
 import { ChatRequestSchema, type ChatMessage } from "./requestSchema";
-import { MAX_TOKENS } from "./constants";
+import { MAX_CONTEXT_SLUGS_LENGTH, MAX_TOKENS } from "./constants";
 
 export type ChatProvider = "kimi" | "anthropic" | "openrouter";
 
@@ -132,7 +132,7 @@ export function buildAllowedSlugsHeader(
     seams: { slug: string }[];
     projects: { slug: string }[];
   },
-  maxLength = 2000
+  maxLength = MAX_CONTEXT_SLUGS_LENGTH
 ): string {
   const slugs = [
     ...context.fabrics.map((f) => `fabrics/${f.slug}`),

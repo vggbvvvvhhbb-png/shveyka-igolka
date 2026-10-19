@@ -2,9 +2,8 @@ export {
   getFabricBySlug,
   searchFabrics,
   countFabrics,
-  getFabricById,
-  listFabrics,
-  findFabricsByAliases,
+  searchFabricsByKeywords,
+  searchFabricsByQuery,
 } from "./fabrics";
 export type { Fabric, FabricFilters } from "./fabrics";
 export * from "./seams";
