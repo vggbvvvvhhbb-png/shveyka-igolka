@@ -67,7 +67,8 @@ describe("searchContext with pglite", () => {
         ('twill-cotton', 'Твил', '["сарафанный хлопок", "твил хлопковый"]', '100% хлопок', 'natural', 'medium', 150, 200, 'none', 4, true, '["dress_summer"]', '{}', '[]', 'beginner', 'Стирка при 40°C', '[]'),
         ('satin-silk', 'Атлас', '["атлас шёлковый"]', 'Шёлк 100%', 'natural', 'light', 60, 100, 'none', 5, true, '["lining"]', '{}', '[]', 'advanced', 'Ручная стирка', '[]'),
         ('crepe', 'Креп', '["креп-шифон", "креповый шифон"]', 'Полиэстер 100%', 'synthetic', 'light', 80, 120, 'medium', 3, false, '["dress_summer"]', '{}', '[]', 'advanced', 'Ручная стирка', '[]'),
-        ('wool-coat', 'Костюмная шерсть', '["костюмка", "шерсть костюмная"]', 'Шерсть 80%', 'natural', 'heavy', 250, 400, 'low', 6, true, '["blazer"]', '{}', '[]', 'intermediate', 'Химчистка', '[]')
+        ('wool-coat', 'Костюмная шерсть', '["костюмка", "шерсть костюмная"]', 'Шерсть 80%', 'natural', 'heavy', 250, 400, 'low', 6, true, '["blazer"]', '{}', '[]', 'intermediate', 'Химчистка', '[]'),
+        ('cotton-jersey', 'Хлопок трикотажный', '["хлопок"]', 'Хлопок 95%, эластан 5%', 'blend', 'medium', 130, 180, 'high', 3, true, '["dress_summer"]', '{}', '[]', 'beginner', 'Стирка при 30°C', '[]')
     `);
 
     await client.exec(`
@@ -96,6 +97,16 @@ describe("searchContext with pglite", () => {
         ('hem-double-fold', 'Двойной подгиб', '["подгиб"]', 'hem', 'beginner', '["light","medium"]', 'Низ изделия', '{"stitch_type":"straight"}', '[{"order":1,"instruction":"Подогните край"}]', '["Нет закрепки"]')
     `);
 
+    // Девять швов с «отрезок» в алиасах — проверяем срез выдачи в 8 записей.
+    const manySeams = Array.from({ length: 9 }, (_, i) => {
+      const id = `cut-edge-${i + 1}`;
+      return `('${id}', 'Отрезка ${i + 1}', '["отрезок"]', 'edge_finish', 'beginner', '["light"]', 'Край изделия', '{"stitch_type":"straight"}', '[]', '[]')`;
+    });
+
+    await client.exec(
+      `INSERT INTO seams (id, name, aliases, type, difficulty, suitable_weight_classes, when_to_use, default_machine_settings, steps, common_mistakes) VALUES ${manySeams.join(", ")}`
+    );
+
     await client.exec(`
       CREATE TABLE projects (
         id TEXT PRIMARY KEY,
@@ -123,6 +134,16 @@ describe("searchContext with pglite", () => {
       VALUES
         ('pillowcase-simple', 'Наволочка классическая', 'home_textile', 'pillowcase', 'beginner', '[1, 2]', 'width * 2 + 25', '{}', '{}', '["hem-double-fold"]', '["Швы ровные"]')
     `);
+
+    // Девять проектов с «подушка» в названии — проверяем срез выдачи в 8 записей.
+    const manyProjects = Array.from({ length: 9 }, (_, i) => {
+      const id = `pillowcase-variant-${i + 1}`;
+      return `('${id}', 'Подушка вариант ${i + 1}', 'home_textile', 'pillowcase', 'beginner', '[1, 2]', 'width * 2 + 25', '{}', '{}', '[]', '[]')`;
+    });
+
+    await client.exec(
+      `INSERT INTO projects (id, name, category, garment_type, difficulty, estimated_time_hours, fabric_amount_formula, seam_allowances, materials, required_seams, final_checklist) VALUES ${manyProjects.join(", ")}`
+    );
   });
 
   it("finds a fabric by name keyword", async () => {
@@ -155,5 +176,31 @@ describe("searchContext with pglite", () => {
     // Запрос затрагивает алиасы нескольких тканей — срез всё равно 4.
     const ctx = await searchContext(db, "атлас костюмка поплин шёлк хлопок");
     expect(ctx.fabrics.length).toBeLessThanOrEqual(4);
+  });
+
+  it("дедуплицирует ткань, найденную сразу по нескольким словам", async () => {
+    // «Атлас» совпадает и по названию, и по алиасу «атлас шёлковый».
+    const ctx = await searchContext(db, "атлас шёлковый атлас");
+    expect(ctx.fabrics.filter((f) => f.slug === "satin-silk")).toHaveLength(1);
+  });
+
+  it("приоритет: совпадение по названию раньше совпадения по алиасу", async () => {
+    // «Хлопок трикотажный» совпадает по названию, «Твил» — только по алиасу
+    // «сарафанный хлопок», «Джинса» — только по составу.
+    const ctx = await searchContext(db, "хлопок");
+    const slugs = ctx.fabrics.map((f) => f.slug);
+    expect(slugs[0]).toBe("cotton-jersey");
+    expect(slugs.indexOf("cotton-jersey")).toBeLessThan(slugs.indexOf("twill-cotton"));
+    expect(slugs.indexOf("twill-cotton")).toBeLessThan(slugs.indexOf("denim"));
+  });
+
+  it("итоговый список швов не превышает 8 записей", async () => {
+    const ctx = await searchContext(db, "отрезок");
+    expect(ctx.seams.length).toBe(8);
+  });
+
+  it("итоговый список проектов не превышает 8 записей", async () => {
+    const ctx = await searchContext(db, "подушка");
+    expect(ctx.projects.length).toBe(8);
   });
 });
