@@ -1,15 +1,18 @@
 import { describe, it, expect, beforeAll } from "vitest";
 import { PGlite } from "@electric-sql/pglite";
 import { drizzle } from "drizzle-orm/pglite";
+import type { DatabaseClient } from "../client";
 import * as schema from "../schema";
 import { searchFabrics, countFabrics, getFabricBySlug } from "./fabrics";
 
 describe("fabrics queries with pglite", () => {
-  let db: any;
+  // PGlite-клиент отличается от node-postgres по типам (другая реализация HKT),
+  // хотя SQL слоя запросов выполняется одинаково — приводим тип вручную.
+  let db: DatabaseClient;
 
   beforeAll(async () => {
     const client = new PGlite();
-    db = drizzle(client, { schema });
+    db = drizzle(client, { schema }) as unknown as DatabaseClient;
 
     // Create fabrics table using raw SQL (same as schema, but without indexes that may not matter)
     await client.exec(`
