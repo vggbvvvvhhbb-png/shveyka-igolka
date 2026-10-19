@@ -8,6 +8,7 @@ const navItems = [
   { href: "/fabrics", label: "Ткани" },
   { href: "/seams", label: "Швы" },
   { href: "/projects", label: "Проекты" },
+  { href: "/measurements", label: "Мерки" },
 ];
 
 export function Header() {

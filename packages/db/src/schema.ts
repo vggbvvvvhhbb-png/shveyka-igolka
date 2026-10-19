@@ -106,3 +106,65 @@ export const projects = pgTable(
     index("projects_required_seams_idx").on(table.required_seams),
   ]
 );
+
+// ============================================================================
+// CONVERSATIONS
+// ============================================================================
+
+export const conversations = pgTable("conversations", {
+  id: text("id").primaryKey(),
+  // Заголовок берётся из первого сообщения диалога, поэтому пустой диалог
+  // остаётся без названия.
+  title: text("title"),
+  created_at: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updated_at: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .$onUpdate(() => new Date())
+    .notNull(),
+});
+
+// ============================================================================
+// MESSAGES
+// ============================================================================
+
+export const messages = pgTable(
+  "messages",
+  {
+    id: text("id").primaryKey(),
+    conversation_id: text("conversation_id")
+      .notNull()
+      .references(() => conversations.id, { onDelete: "cascade" }),
+    role: text("role").notNull(),
+    content: text("content").notNull(),
+    created_at: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("messages_conversation_id_idx").on(table.conversation_id),
+    index("messages_created_at_idx").on(table.created_at),
+  ]
+);
+
+// ============================================================================
+// MEASUREMENTS
+// ============================================================================
+
+/**
+ * Мерки хранятся плоской таблицей, а не в виде пар «название — значение».
+ *
+ * В приложении мерки заполняет один человек для себя, набор значений
+ * фиксирован (обхват груди, талии, бёдер, рост), и разбирать их по названиям
+ * приходилось бы только в одном месте — в форме и в подсказках ассистента.
+ * Плоская таблица даёт одну строку, у которой все поля опциональны, и не
+ * требует справочника названий.
+ */
+export const measurements = pgTable("measurements", {
+  id: text("id").primaryKey(),
+  bust: integer("bust"),
+  waist: integer("waist"),
+  hip: integer("hip"),
+  height: integer("height"),
+  updated_at: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .$onUpdate(() => new Date())
+    .notNull(),
+});

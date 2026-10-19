@@ -12,6 +12,7 @@
     "seed": "tsx src/seed.ts",
     "seed:fresh": "tsx src/seed.ts --fresh",
     "lint": "eslint src/",
+    "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },
   "dependencies": {

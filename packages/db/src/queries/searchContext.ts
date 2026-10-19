@@ -1,9 +1,10 @@
 import type { DatabaseClient } from "../client";
-import type { AssistantContext } from "@shveyka/core";
-import { AssistantContextSchema } from "@shveyka/core";
+import type { AssistantContext, BodyMeasurements } from "@shveyka/core";
+import { AssistantContextSchema, buildSizeHint, hasMeasurements } from "@shveyka/core";
 import { searchFabricsByKeywords } from "./fabrics";
 import { listSeams } from "./seams";
 import { listProjects } from "./projects";
+import { getMeasurements } from "./measurements";
 import { withRetry } from "../utils/withRetry";
 
 const STOP_WORDS = new Set([
@@ -49,12 +50,31 @@ function matchesAny(text: string, keywords: string[]): boolean {
 }
 
 /**
+ * Читает мерки пользователя и приводит их к виду, удобному для контекста.
+ * Если мерок нет или все поля пустые, возвращается undefined — тогда блок
+ * «Мерки» в промпте не появляется вовсе.
+ */
+async function loadMeasurements(db: DatabaseClient): Promise<BodyMeasurements | undefined> {
+  const row = await withRetry(() => getMeasurements(db));
+  if (!row) return undefined;
+
+  const measurements: BodyMeasurements = {
+    bust: row.bust ?? undefined,
+    waist: row.waist ?? undefined,
+    hip: row.hip ?? undefined,
+    height: row.height ?? undefined,
+  };
+  return hasMeasurements(measurements) ? measurements : undefined;
+}
+
+/**
  * Ищет релевантные записи каталога для вопроса пользователя.
  * Ткани — через searchFabricsByKeywords по ключевым словам.
  * Швы и проекты — фильтрация в JS по name и aliases/steps (объёмы каталога малы).
  */
 export async function searchContext(db: DatabaseClient, query: string): Promise<AssistantContext> {
   const keywords = extractKeywords(query);
+  const measurements = await loadMeasurements(db);
 
   if (keywords.length === 0) {
     return { fabrics: [], seams: [], projects: [] };
@@ -106,17 +126,24 @@ export async function searchContext(db: DatabaseClient, query: string): Promise<
       })),
       common_mistakes: s.common_mistakes as string[],
     })),
-    projects: projectRows.map((p) => ({
-      slug: p.id,
-      name: p.name,
-      category: p.category,
-      garment_type: p.garment_type,
-      difficulty: p.difficulty,
-      estimated_time_hours: p.estimated_time_hours as [number, number],
-      fabric_amount_formula: p.fabric_amount_formula,
-      required_seams: p.required_seams as string[],
-      final_checklist: p.final_checklist as string[],
-    })),
+    projects: projectRows.map((p) => {
+      // Подсказка по размеру появляется, только если мерки есть и для этого
+      // типа изделия есть правило вывода размера.
+      const sizeHint = measurements ? buildSizeHint(p.garment_type, measurements) : null;
+      return {
+        slug: p.id,
+        name: p.name,
+        category: p.category,
+        garment_type: p.garment_type,
+        difficulty: p.difficulty,
+        estimated_time_hours: p.estimated_time_hours as [number, number],
+        fabric_amount_formula: p.fabric_amount_formula,
+        required_seams: p.required_seams as string[],
+        final_checklist: p.final_checklist as string[],
+        ...(sizeHint ? { size_hint: sizeHint } : {}),
+      };
+    }),
+    ...(measurements ? { measurements } : {}),
   };
 
   return AssistantContextSchema.parse(context);
