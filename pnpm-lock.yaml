@@ -103,6 +103,9 @@ importers:
       typescript:
         specifier: 'catalog:'
         version: 5.9.3
+      vitest:
+        specifier: 'catalog:'
+        version: 2.1.9(@types/node@20.19.39)(lightningcss@1.32.0)(msw@2.13.5(@types/node@20.19.39)(typescript@5.9.3))
 
   packages/db:
     dependencies:

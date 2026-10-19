@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseLinkSegments, stripUnknownLinks } from "@shveyka/core";
+import { parseLinkSegments, stripUnknownLinks } from "./parseLinks";
 
 describe("parseLinkSegments (фильтрация ссылок по разрешённым slug)", () => {
   it("Тест 1: slug из allowedSlugs → ссылка", () => {

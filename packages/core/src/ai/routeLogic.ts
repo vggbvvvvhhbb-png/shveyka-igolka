@@ -88,7 +88,11 @@ export function parseSSEChunk(line: string, provider: ChatProvider | string): st
     return null;
   }
 
-  const obj = json as Record<string, any>;
+  const obj = json as {
+    type?: unknown;
+    delta?: { text?: unknown };
+    choices?: Array<{ delta?: { content?: unknown } }>;
+  };
   if (provider === "anthropic") {
     if (obj?.type === "content_block_delta" && typeof obj?.delta?.text === "string") {
       return obj.delta.text;
