@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 dotenvConfig({ path: resolve(process.cwd(), "../../.env") });
 import { readFileSync } from "node:fs";
 import { z } from "zod";
-import { createDbClient } from "./client";
+import { getDbSingleton, closeDbPool } from "./client";
 import { fabrics, seams, projects } from "./schema";
 import { FabricSchema, SeamSchema, ProjectSchema } from "@shveyka/core";
 
@@ -37,7 +37,7 @@ async function seed() {
     throw new Error("DATABASE_URL is not set");
   }
 
-  const db = createDbClient(connectionString);
+  const db = getDbSingleton(connectionString);
 
   const seamData = loadJson("seams.json", SeamSchema);
   const fabricData = loadJson("fabrics.json", FabricSchema);
@@ -77,6 +77,10 @@ async function seed() {
   console.log(
     `✅ Seeded ${seamData.length} seams, ${fabricData.length} fabrics, ${projectData.length} projects`
   );
+
+  // Пул держит открытые соединения, поэтому закрываем его явно —
+  // иначе процесс сида не завершится.
+  await closeDbPool();
 }
 
 seed().catch((err) => {
