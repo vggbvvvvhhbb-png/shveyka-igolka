@@ -11,3 +11,9 @@ out/
 .temp/
 .turbo/
 dev-log.txt
+
+# Служебные файлы IDE и агентов
+.tsbuildinfo
+*.tsbuildinfo
+.clinerules
+~$*
