@@ -1,4 +1,5 @@
 import type { AssistantContext } from "./contextSchema";
+import { hasMeasurements } from "./measurements";
 
 const INSTRUCTIONS = `Ты — консультант по шитью Швейка. Помогаешь с тканями, швами, проектами и настройками швейной машины Brother LS-200s.
 
@@ -10,15 +11,35 @@ const INSTRUCTIONS = `Ты — консультант по шитью Швейк
 5. Отвечай по-русски. Обычно 3–8 предложений. Для пошаговых инструкций используй нумерованный список.
 6. Если вопрос не про шитьё, вежливо откажись и предложи вопрос по теме каталога.`;
 
+/**
+ * Дополнительные правила, когда у пользователя заполнены мерки.
+ *
+ * Пояснение про формулу нужно, потому что в каталоге fabric_amount_formula
+ * считает длину отреза в сантиметрах, а width, length и sleeve_length в ней —
+ * это размеры самого изделия, а не ширина ткани. Без пояснения модель
+ * склонна считать, что речь про ширину полотна.
+ */
+const MEASUREMENT_INSTRUCTIONS = `7. В блоке «Мерки» указаны размеры пользователя в сантиметрах. Учитывай их при подборе проекта и при расчёте расхода ткани. Формула проекта в fabric_amount_formula даёт длину отреза в сантиметрах, где width, length и sleeve_length — это размеры самого изделия, а не ширина ткани. Если размер из мерок вывести нельзя, скажи об этом прямо и возьми расход из materials.main_fabric. Если у проекта есть size_hint — это уже посчитанный размер, используй его.`;
+
 export function buildSystemPrompt(context: AssistantContext): string {
+  // Мерки тоже считаются данными: без них блок остался бы пустым, и модель
+  // не увидела бы размеры пользователя, даже если каталог ничего не нашёл.
   const hasData =
-    context.fabrics.length > 0 || context.seams.length > 0 || context.projects.length > 0;
+    context.fabrics.length > 0 ||
+    context.seams.length > 0 ||
+    context.projects.length > 0 ||
+    hasMeasurements(context.measurements);
 
   const dataBlock = hasData
     ? JSON.stringify(context, null, 2)
     : "Подходящих записей не найдено. Блок данных пуст.";
 
-  return `${INSTRUCTIONS}
+  // Без мерок промпт остаётся ровно таким же, как был до их появления.
+  const instructions = hasMeasurements(context.measurements)
+    ? `${INSTRUCTIONS}\n${MEASUREMENT_INSTRUCTIONS}`
+    : INSTRUCTIONS;
+
+  return `${instructions}
 
 ## Доступные данные
 ${dataBlock}`;

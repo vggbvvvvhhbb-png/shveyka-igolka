@@ -30,9 +30,10 @@ describe("searchContext with pglite", () => {
   // PGlite-клиент отличается от node-postgres по типам (другая реализация HKT),
   // хотя SQL слоя запросов выполняется одинаково — приводим тип вручную.
   let db: DatabaseClient;
+  let client: PGlite;
 
   beforeAll(async () => {
-    const client = new PGlite();
+    client = new PGlite();
     db = drizzle(client, { schema }) as unknown as DatabaseClient;
 
     await client.exec(`
@@ -144,6 +145,24 @@ describe("searchContext with pglite", () => {
     await client.exec(
       `INSERT INTO projects (id, name, category, garment_type, difficulty, estimated_time_hours, fabric_amount_formula, seam_allowances, materials, required_seams, final_checklist) VALUES ${manyProjects.join(", ")}`
     );
+
+    // Юбка на резинке: у этого проекта в шагах есть правило вывода ширины
+    // полотна из обхвата бёдер — по нему считается подсказка по размеру.
+    await client.exec(`
+      INSERT INTO projects (id, name, category, garment_type, difficulty, estimated_time_hours, fabric_amount_formula, seam_allowances, materials, required_seams, final_checklist)
+      VALUES ('skirt-elastic-waist', 'Юбка на резинке', 'clothing', 'skirt_elastic', 'beginner', '[2, 4]', 'length + 15', '{}', '{}', '["straight-seam"]', '["Швы ровные"]')
+    `);
+
+    await client.exec(`
+      CREATE TABLE measurements (
+        id TEXT PRIMARY KEY,
+        bust INTEGER,
+        waist INTEGER,
+        hip INTEGER,
+        height INTEGER,
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
   });
 
   it("finds a fabric by name keyword", async () => {
@@ -202,5 +221,32 @@ describe("searchContext with pglite", () => {
   it("итоговый список проектов не превышает 8 записей", async () => {
     const ctx = await searchContext(db, "подушка");
     expect(ctx.projects.length).toBe(8);
+  });
+
+  it("без мерок в контексте нет блока measurements", async () => {
+    const ctx = await searchContext(db, "юбка на резинке");
+
+    expect(ctx.measurements).toBeUndefined();
+    expect(ctx.projects.find((p) => p.slug === "skirt-elastic-waist")?.size_hint).toBeUndefined();
+  });
+
+  it("мерки попадают в контекст и в подсказку по размеру", async () => {
+    await client.exec(`
+      INSERT INTO measurements (id, bust, waist, hip, height)
+      VALUES ('default', 92, 74, 98, 168)
+    `);
+
+    const ctx = await searchContext(db, "юбка на резинке");
+
+    expect(ctx.measurements).toEqual({ bust: 92, waist: 74, hip: 98, height: 168 });
+    const skirt = ctx.projects.find((p) => p.slug === "skirt-elastic-waist");
+    expect(skirt?.size_hint).toContain("59 см");
+  });
+
+  it("у проектов без правила подсказки по размеру нет", async () => {
+    const ctx = await searchContext(db, "наволочка");
+
+    expect(ctx.measurements).toBeDefined();
+    expect(ctx.projects.find((p) => p.slug === "pillowcase-simple")?.size_hint).toBeUndefined();
   });
 });

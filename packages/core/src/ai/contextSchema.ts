@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { BodyMeasurementsSchema } from "./measurements";
 
 // Поля, которые реально нужны модели. Полные записи в промпт не передаются.
 
@@ -40,12 +41,17 @@ export const ProjectContextSchema = z.object({
   fabric_amount_formula: z.string(),
   required_seams: z.array(z.string()),
   final_checklist: z.array(z.string()),
+  // Подсказка по размеру изделия, посчитанная из мерок пользователя.
+  // Появляется только если мерки есть и для этого проекта есть правило.
+  size_hint: z.string().optional(),
 });
 
 export const AssistantContextSchema = z.object({
   fabrics: z.array(FabricContextSchema).max(8),
   seams: z.array(SeamContextSchema).max(8),
   projects: z.array(ProjectContextSchema).max(8),
+  // Мерки пользователя. Блок появляется, только если мерки заполнены.
+  measurements: BodyMeasurementsSchema.optional(),
 });
 
 export type AssistantContext = z.infer<typeof AssistantContextSchema>;
