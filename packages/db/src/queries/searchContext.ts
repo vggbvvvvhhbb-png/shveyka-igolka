@@ -1,6 +1,12 @@
 import type { DatabaseClient } from "../client";
 import type { AssistantContext, BodyMeasurements } from "@shveyka/core";
-import { AssistantContextSchema, buildSizeHint, hasMeasurements } from "@shveyka/core";
+import {
+  AssistantContextSchema,
+  buildSizeHint,
+  hasMeasurements,
+  matchesSearchTerm,
+  normalizeSearchText,
+} from "@shveyka/core";
 import { searchFabricsByKeywords } from "./fabrics";
 import { listSeams } from "./seams";
 import { listProjects } from "./projects";
@@ -30,11 +36,16 @@ const MAX_FABRICS = 4;
 
 /**
  * Извлекает значимые слова запроса: нижний регистр, без коротких и стоп-слов.
+ *
+ * Слова приводятся к общему виду: «ё» становится «е», поэтому запрос «из льна»
+ * и запись «Лён» сравнимы. Падежные формы («льня», «льна») находятся по
+ * «скелету» слова — см. matchesSearchTerm.
  */
 export function extractKeywords(query: string): string[] {
   const words = query
     .toLowerCase()
     .split(/[^a-zа-яё0-9]+/iu)
+    .map((w) => normalizeSearchText(w))
     .filter((w) => w.length >= 3 && !STOP_WORDS.has(w));
 
   // Грубая основа: отбрасываем последнюю букву у длинных слов,
@@ -44,9 +55,14 @@ export function extractKeywords(query: string): string[] {
   return [...new Set([...words, ...stems])];
 }
 
+/**
+ * Проверяет, совпадает ли текст каталога хотя бы с одним словом запроса.
+ *
+ * Сравнение учитывает нормализацию текста и падежные формы: «льня» находит
+ * «Лён», «кулирка» — «Трикотаж кулирная гладь».
+ */
 function matchesAny(text: string, keywords: string[]): boolean {
-  const lower = text.toLowerCase();
-  return keywords.some((k) => lower.includes(k));
+  return keywords.some((keyword) => matchesSearchTerm(text, keyword));
 }
 
 /**

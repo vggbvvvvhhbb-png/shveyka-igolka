@@ -1,7 +1,8 @@
-import { eq, and, sql, count, asc, type SQL } from "drizzle-orm";
+import { eq, and, sql, count, asc, type SQL, type SQLChunk } from "drizzle-orm";
 import type { DatabaseClient } from "../client";
 import { fabrics } from "../schema";
 import type { WeightClass } from "@shveyka/core";
+import { normalizeSearchText, searchSkeleton } from "@shveyka/core";
 import { withRetry } from "../utils/withRetry";
 
 export type Fabric = typeof fabrics.$inferSelect;
@@ -64,6 +65,41 @@ const SEARCH_FIELDS = ["name", "aliases", "composition", "care", "issues"] as co
 type SearchField = (typeof SEARCH_FIELDS)[number];
 
 /**
+ * Поля, по которым допускается приближённое совпадение по «скелету» слова.
+ *
+ * Только те, что называют саму ткань: в свободных текстах вроде ухода или
+ * типичных проблем приближённое совпадение даёт слишком много шума.
+ */
+const IDENTITY_FIELDS: readonly SearchField[] = ["name", "aliases"];
+
+/**
+ * Минимальная длина слова, с которой включается приближённое совпадение.
+ * У коротких слов «скелет» слишком короткий и совпал бы с кем угодно.
+ */
+const MIN_APPROXIMATE_LENGTH = 3;
+
+/** Минимальная длина «скелета», с которой он вообще что-то значит. */
+const MIN_SKELETON_LENGTH = 2;
+
+/**
+ * Приводит значение БД к общему виду: нижний регистр, «ё» → «е», «ъ» → «ь».
+ *
+ * Так поиск не зависит от того, как слово записано в каталоге: «ё» и «е»
+ * считаются одной буквой, и запрос «из льна» находит ткань «Лён».
+ */
+function normalizeSql(expr: SQLChunk): SQL {
+  return sql`lower(translate(${expr}, 'ёЁъЪ', 'еЕьЬ'))`;
+}
+
+/**
+ * «Скелет» слова на стороне БД: согласные без мягкого знака.
+ * Соответствует searchSkeleton из @shveyka/core.
+ */
+function skeletonSql(expr: SQLChunk): SQL {
+  return sql`regexp_replace(${normalizeSql(expr)}, '[аеиоуыэюяь]', '', 'g')`;
+}
+
+/**
  * Экранирует спецсимволы LIKE/ILIKE («%», «_», «\»), чтобы в запросе они
  * искались буквально, а не работали как wildcards.
  */
@@ -72,42 +108,115 @@ function escapeLikePattern(value: string): string {
 }
 
 /**
+ * Шаблоны LIKE для одного поискового слова.
+ *
+ * exact — совпадение по нормализованному тексту.
+ * skeleton — совпадение по «скелету» слова; нужно, чтобы падежные формы
+ * («льня», «льна») находили запись «Лён». null, если скелет слишком короткий.
+ */
+type TermPatterns = {
+  exact: string;
+  skeleton: string | null;
+};
+
+/**
  * Приводит поисковые слова к экранированным паттернам. Пустые слова
  * отбрасываются: по ним условие поиска строиться не должно.
  */
-function toPatterns(terms: string[]): string[] {
-  const patterns: string[] = [];
+function toPatterns(terms: string[]): TermPatterns[] {
+  const patterns: TermPatterns[] = [];
+
   for (const term of terms) {
     const trimmed = term.trim();
     if (trimmed.length === 0) continue;
-    patterns.push(`%${escapeLikePattern(trimmed)}%`);
+    patterns.push({
+      exact: `%${escapeLikePattern(trimmed)}%`,
+      skeleton: buildSkeletonPattern(trimmed),
+    });
   }
+
   return patterns;
 }
 
 /**
- * Условие совпадения по одному полю. Для jsonb-массивов используется
- * jsonb_array_elements_text, чтобы искать по каждому элементу отдельно.
+ * «Скелет» поискового слова для приближённого совпадения.
+ *
+ * Возвращает null, если скелет слишком короткий: у коротких слов он совпал бы
+ * с кем угодно. Минимум — две буквы, этого хватает для «лён» → «льня».
  */
-function matchesTerm(pattern: string, field: SearchField): SQL {
+function buildSkeletonPattern(term: string): string | null {
+  if (normalizeSearchText(term).length < MIN_APPROXIMATE_LENGTH) return null;
+  const skeleton = searchSkeleton(term);
+  if (skeleton.length < MIN_SKELETON_LENGTH) return null;
+  return skeleton;
+}
+
+/**
+ * Условие точного совпадения по одному полю: и значение поля, и шаблон
+ * приводятся к общему виду, поэтому «ё» и «е» считаются одной буквой.
+ */
+function matchesExact(pattern: string, field: SearchField): SQL {
   switch (field) {
     case "name":
-      return sql`${fabrics.name} ILIKE ${pattern}`;
+      return sql`${normalizeSql(fabrics.name)} ILIKE ${normalizeSql(pattern)}`;
     case "aliases":
       return sql`EXISTS (
-        SELECT 1 FROM jsonb_array_elements_text(${fabrics.aliases}) AS alias
-        WHERE alias ILIKE ${pattern}
+        SELECT 1 FROM jsonb_array_elements_text(${fabrics.aliases}) AS alias_value
+        WHERE ${normalizeSql(sql`alias_value`)} ILIKE ${normalizeSql(pattern)}
       )`;
     case "composition":
-      return sql`${fabrics.composition} ILIKE ${pattern}`;
+      return sql`${normalizeSql(fabrics.composition)} ILIKE ${normalizeSql(pattern)}`;
     case "care":
-      return sql`${fabrics.care_instructions} ILIKE ${pattern}`;
+      return sql`${normalizeSql(fabrics.care_instructions)} ILIKE ${normalizeSql(pattern)}`;
     case "issues":
       return sql`EXISTS (
-        SELECT 1 FROM jsonb_array_elements_text(${fabrics.common_issues}) AS issue
-        WHERE issue ILIKE ${pattern}
+        SELECT 1 FROM jsonb_array_elements_text(${fabrics.common_issues}) AS issue_value
+        WHERE ${normalizeSql(sql`issue_value`)} ILIKE ${normalizeSql(pattern)}
       )`;
   }
+}
+
+/**
+ * Приближённое совпадение по «скелету» слова.
+ *
+ * Два направления: скелет поля начинается со скелета запроса и наоборот.
+ * Первое ловит падежные формы («льня» → «лён»), второе — запрос длиннее
+ * записи («хлопковая» → «Хлопок»).
+ */
+function matchesSkeleton(skeleton: string, field: SearchField): SQL {
+  const pattern = `${escapeLikePattern(skeleton)}%`;
+
+  switch (field) {
+    case "name":
+      return sql`(
+        ${skeletonSql(fabrics.name)} ILIKE ${pattern}
+        OR ${skeleton} ILIKE (nullif(${skeletonSql(fabrics.name)}, '') || '%')
+      )`;
+    case "aliases":
+      return sql`EXISTS (
+        SELECT 1 FROM jsonb_array_elements_text(${fabrics.aliases}) AS alias_value
+        WHERE ${skeletonSql(sql`alias_value`)} ILIKE ${pattern}
+           OR ${skeleton} ILIKE (nullif(${skeletonSql(sql`alias_value`)}, '') || '%')
+      )`;
+    default:
+      // Приближённое совпадение разрешено только для полей, которые называют
+      // саму ткань: в свободных текстах оно даёт слишком много шума.
+      return sql`false`;
+  }
+}
+
+/**
+ * Условие совпадения поискового слова по полю: точное совпадение плюс
+ * приближённое по «скелету» слова, если поле называет саму ткань.
+ */
+function matchesTerm(pattern: TermPatterns, field: SearchField): SQL {
+  const conditions: SQL[] = [matchesExact(pattern.exact, field)];
+
+  if (pattern.skeleton && IDENTITY_FIELDS.includes(field)) {
+    conditions.push(matchesSkeleton(pattern.skeleton, field));
+  }
+
+  return sql.join(conditions, sql` OR `);
 }
 
 /**
@@ -115,7 +224,7 @@ function matchesTerm(pattern: string, field: SearchField): SQL {
  * хотя бы по одному полю. Используется и веб-поиском на /fabrics, и AI-поиском
  * в searchContext — чтобы поведение двух поисков не расходилось.
  */
-function buildSearchCondition(patterns: string[]): SQL | undefined {
+function buildSearchCondition(patterns: TermPatterns[]): SQL | undefined {
   if (patterns.length === 0) return undefined;
 
   const parts: SQL[] = [];
@@ -132,7 +241,7 @@ function buildSearchCondition(patterns: string[]): SQL | undefined {
  * Ранг релевантности: 1 — совпадение по названию, 2 — по алиасу,
  * 3 — по составу, 4 — по уходу, 5 — по типичным проблемам.
  */
-function buildRelevanceSql(patterns: string[]): SQL {
+function buildRelevanceSql(patterns: TermPatterns[]): SQL {
   const byField = (field: SearchField): SQL =>
     sql.join(
       patterns.map((pattern) => matchesTerm(pattern, field)),

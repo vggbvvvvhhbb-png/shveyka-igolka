@@ -173,3 +173,92 @@ describe("fabrics queries with pglite", () => {
     expect(result[0].name).toBe("Джинса");
   });
 });
+
+describe("поиск тканей с «ё» и «е»", () => {
+  // Каталог пишет «Лён», «Шёлк», а пользователь ищет «лень», «шелк».
+  // Без нормализации запись не находится вовсе.
+  let db: DatabaseClient;
+
+  beforeAll(async () => {
+    const client = new PGlite();
+    db = drizzle(client, { schema }) as unknown as DatabaseClient;
+
+    await client.exec(`
+      CREATE TABLE fabrics (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        aliases JSONB NOT NULL DEFAULT '[]',
+        composition TEXT NOT NULL,
+        category TEXT NOT NULL,
+        weight_class TEXT NOT NULL,
+        density_min_gsm INTEGER NOT NULL,
+        density_max_gsm INTEGER NOT NULL,
+        stretch TEXT NOT NULL,
+        shrinkage_percent INTEGER NOT NULL,
+        requires_decatizing BOOLEAN NOT NULL,
+        suitable_for JSONB NOT NULL DEFAULT '[]',
+        default_machine_settings JSONB NOT NULL DEFAULT '{}',
+        recommended_edge_finish JSONB NOT NULL DEFAULT '[]',
+        difficulty_to_work_with TEXT NOT NULL,
+        care_instructions TEXT NOT NULL,
+        common_issues JSONB NOT NULL DEFAULT '[]',
+        photo_url TEXT,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
+
+    await client.exec(`
+      INSERT INTO fabrics (id, name, aliases, composition, category, weight_class, density_min_gsm, density_max_gsm, stretch, shrinkage_percent, requires_decatizing, suitable_for, default_machine_settings, recommended_edge_finish, difficulty_to_work_with, care_instructions, common_issues)
+      VALUES
+        ('linen-natural', 'Лён', '["лён", "linen"]', '100% лён', 'natural', 'medium', 150, 200, 'none', 7, true, '[]', '{}', '[]', 'intermediate', 'Стирка при 40°C', '[]'),
+        ('silk-natural', 'Шёлк натуральный', '["шёлк", "silk"]', '100% шёлк', 'natural', 'light', 60, 100, 'none', 5, true, '[]', '{}', '[]', 'advanced', 'Ручная стирка', '[]'),
+        ('quilted-fabric', 'Стёжка', '["стёжка", "quilted fabric"]', '100% хлопок', 'natural', 'medium', 180, 240, 'none', 3, true, '[]', '{}', '[]', 'intermediate', 'Стирка при 40°C', '[]')
+    `);
+  });
+
+  it("находит «Лён» по запросу «лень»", async () => {
+    const result = await searchFabrics(db, { q: "лень" });
+    expect(result.map((r) => r.id)).toEqual(["linen-natural"]);
+  });
+
+  it("находит «Лён» по запросу «льня»", async () => {
+    const result = await searchFabrics(db, { q: "льня" });
+    expect(result.map((r) => r.id)).toEqual(["linen-natural"]);
+  });
+
+  it("находит «Лён» по запросу «льна»", async () => {
+    const result = await searchFabrics(db, { q: "льна" });
+    expect(result.map((r) => r.id)).toEqual(["linen-natural"]);
+  });
+
+  it("находит «Лён» по запросу «лен»", async () => {
+    const result = await searchFabrics(db, { q: "лен" });
+    expect(result[0].id).toBe("linen-natural");
+  });
+
+  it("находит «Шёлк» по запросу «шелк»", async () => {
+    const result = await searchFabrics(db, { q: "шелк" });
+    expect(result.map((r) => r.id)).toEqual(["silk-natural"]);
+  });
+
+  it("находит «Стёжка» по запросу «стежка»", async () => {
+    const result = await searchFabrics(db, { q: "стежка" });
+    expect(result.map((r) => r.id)).toEqual(["quilted-fabric"]);
+  });
+
+  it("не путает «Лён» с похожим по гласным словом", async () => {
+    const result = await searchFabrics(db, { q: "длинный" });
+    expect(result.map((r) => r.id)).not.toContain("linen-natural");
+  });
+
+  it("searchFabricsByKeywords находит «Лён» по слову «льна»", async () => {
+    const result = await searchFabricsByKeywords(db, ["льна"]);
+    expect(result.map((r) => r.id)).toContain("linen-natural");
+  });
+
+  it("совпадение по названию идёт раньше совпадения по составу", async () => {
+    const result = await searchFabrics(db, { q: "шелк" });
+    expect(result[0].id).toBe("silk-natural");
+  });
+});

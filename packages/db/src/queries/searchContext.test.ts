@@ -98,6 +98,12 @@ describe("searchContext with pglite", () => {
         ('hem-double-fold', 'Двойной подгиб', '["подгиб"]', 'hem', 'beginner', '["light","medium"]', 'Низ изделия', '{"stitch_type":"straight"}', '[{"order":1,"instruction":"Подогните край"}]', '["Нет закрепки"]')
     `);
 
+    // Шов с «ё» в алиасе: пользователь пишет «обметканная» вместо «обмётанная».
+    await client.exec(`
+      INSERT INTO seams (id, name, aliases, type, difficulty, suitable_weight_classes, when_to_use, default_machine_settings, steps, common_mistakes)
+      VALUES ('buttonhole-zigzag', 'Петля в рамку зигзагом', '["обмётанная петля", "петля"]', 'buttonhole', 'intermediate', '["light","medium"]', 'Застёжка', '{"stitch_type":"zigzag"}', '[]', '[]')
+    `);
+
     // Девять швов с «отрезок» в алиасах — проверяем срез выдачи в 8 записей.
     const manySeams = Array.from({ length: 9 }, (_, i) => {
       const id = `cut-edge-${i + 1}`;
@@ -248,5 +254,17 @@ describe("searchContext with pglite", () => {
 
     expect(ctx.measurements).toBeDefined();
     expect(ctx.projects.find((p) => p.slug === "pillowcase-simple")?.size_hint).toBeUndefined();
+  });
+
+  it("находит шов, если в запросе «е» вместо «ё»", async () => {
+    // В алиасе записано «обмётанная петля», пользователь пишет «обметканная».
+    const ctx = await searchContext(db, "обметканная петля");
+    expect(ctx.seams.map((s) => s.slug)).toContain("buttonhole-zigzag");
+  });
+
+  it("находит ткань, если в запросе «е» вместо «ё»", async () => {
+    // В каталоге записано «атлас шёлковый», пользователь пишет «шелковый».
+    const ctx = await searchContext(db, "атлас шелковый");
+    expect(ctx.fabrics.map((f) => f.slug)).toContain("satin-silk");
   });
 });
