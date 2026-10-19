@@ -6,6 +6,8 @@ export * from "./validators/measurements";
 export * from "./api/errors";
 export * from "./text/highlight";
 export * from "./text/searchNormalize";
+export * from "./text/catalogMatch";
+export * from "./text/plural";
 export * from "./ai/contextSchema";
 export * from "./ai/measurements";
 export * from "./ai/requestSchema";
