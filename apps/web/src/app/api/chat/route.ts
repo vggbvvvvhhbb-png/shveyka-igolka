@@ -1,110 +1,82 @@
 import { NextResponse } from "next/server";
-import { ChatRequestSchema, buildSystemPrompt } from "@shveyka/core";
+import {
+  buildSystemPrompt,
+  buildAllowedSlugsHeader,
+  buildRequestBody,
+  checkRateLimit,
+  isValidatedRequest,
+  parseSSEChunk,
+  PROVIDER_URLS,
+  validateChatRequest,
+  type ChatMessage,
+  type ChatProvider,
+  type RateStore,
+} from "@shveyka/core";
 import { getDbSingleton, queries } from "@shveyka/db";
 
 export const dynamic = "force-dynamic";
 
 const GENERIC_ERROR = "Не удалось получить ответ, попробуйте позже";
 
-// Простой лимит в памяти: 20 запросов за 60 секунд с одного IP.
-// Работает только в одном процессе; на нескольких инстансах лимит слабее.
-const RATE_WINDOW_MS = 60_000;
-const RATE_LIMIT = 20;
-const rateStore = new Map<string, { count: number; windowStart: number }>();
-
-function checkRateLimit(ip: string): boolean {
-  const now = Date.now();
-  const entry = rateStore.get(ip);
-  if (!entry || now - entry.windowStart >= RATE_WINDOW_MS) {
-    rateStore.set(ip, { count: 1, windowStart: now });
-    return true;
-  }
-  if (entry.count >= RATE_LIMIT) {
-    return false;
-  }
-  entry.count += 1;
-  return true;
-}
+// Лимит хранится в памяти процесса: 20 запросов за 60 секунд с одного IP.
+// На нескольких инстансах лимит слабее — для production нужен внешний rate limit.
+const rateStore: RateStore = new Map();
 
 function getClientIp(req: Request): string {
   const forwarded = req.headers.get("x-forwarded-for");
   return forwarded?.split(",")[0]?.trim() || "unknown";
 }
 
-async function streamFromKimi(
-  apiKey: string,
-  systemPrompt: string,
-  messages: { role: string; content: string }[]
-): Promise<Response> {
-  return fetch("https://api.moonshot.ai/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "moonshot-v1-8k",
-      stream: true,
-      messages: [{ role: "system", content: systemPrompt }, ...messages],
-    }),
-  });
+function resolveProvider(): ChatProvider {
+  const providerEnv = process.env.AI_PROVIDER;
+  return providerEnv === "anthropic" || providerEnv === "openrouter" ? providerEnv : "kimi";
 }
 
-type ChatProvider = "kimi" | "anthropic" | "openrouter";
-
-async function streamFromOpenRouter(
-  apiKey: string,
-  systemPrompt: string,
-  messages: { role: string; content: string }[]
-): Promise<Response> {
-  const model = process.env.OPENROUTER_MODEL;
-  if (!model) {
-    throw new Error("OPENROUTER_MODEL is not set");
-  }
-  return fetch("https://openrouter.ai/api/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-      "X-Title": "Shveyka",
-    },
-    body: JSON.stringify({
-      model,
-      stream: true,
-      messages: [{ role: "system", content: systemPrompt }, ...messages],
-    }),
-  });
+function getModel(provider: ChatProvider): string | null {
+  if (provider === "anthropic") return process.env.ANTHROPIC_MODEL ?? null;
+  if (provider === "openrouter") return process.env.OPENROUTER_MODEL ?? null;
+  return "moonshot-v1-8k";
 }
 
-async function streamFromAnthropic(
+function getApiKey(provider: ChatProvider): string | undefined {
+  if (provider === "anthropic") return process.env.ANTHROPIC_API_KEY;
+  if (provider === "openrouter") return process.env.OPENROUTER_API_KEY;
+  return process.env.KIMI_API_KEY;
+}
+
+async function streamFromProvider(
+  provider: ChatProvider,
   apiKey: string,
   systemPrompt: string,
-  messages: { role: string; content: string }[]
+  messages: ChatMessage[]
 ): Promise<Response> {
-  const model = process.env.ANTHROPIC_MODEL;
+  const model = getModel(provider);
   if (!model) {
-    throw new Error("ANTHROPIC_MODEL is not set");
+    throw new Error(`${provider} model is not configured`);
   }
-  return fetch("https://api.anthropic.com/v1/messages", {
+  const headers: Record<string, string> =
+    provider === "anthropic"
+      ? {
+          "x-api-key": apiKey,
+          "anthropic-version": "2023-06-01",
+          "content-type": "application/json",
+        }
+      : {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+          "X-Title": "Shveyka",
+        };
+
+  return fetch(PROVIDER_URLS[provider], {
     method: "POST",
-    headers: {
-      "x-api-key": apiKey,
-      "anthropic-version": "2023-06-01",
-      "content-type": "application/json",
-    },
-    body: JSON.stringify({
-      model,
-      max_tokens: 1024,
-      stream: true,
-      system: systemPrompt,
-      messages,
-    }),
+    headers,
+    body: JSON.stringify(buildRequestBody(messages, systemPrompt, provider, model)),
   });
 }
 
 /**
  * Превращает SSE-поток провайдера в текстовый стрим для клиента.
- * Kimi: choices[0].delta.content. Anthropic: delta.text у content_block_delta.
+ * Разбор строк — в parseSSEChunk (@shveyka/core), оттестирован без сети.
  */
 function toTextStream(
   upstream: ReadableStream<Uint8Array>,
@@ -125,25 +97,11 @@ function toTextStream(
 
           let idx: number;
           while ((idx = buffer.indexOf("\n")) !== -1) {
-            const line = buffer.slice(0, idx).trim();
+            const line = buffer.slice(0, idx);
             buffer = buffer.slice(idx + 1);
-            if (!line.startsWith("data:")) continue;
-            const payload = line.slice(5).trim();
-            if (payload === "[DONE]" || payload === "") continue;
-
-            try {
-              const json = JSON.parse(payload);
-              const text =
-                provider === "anthropic"
-                  ? json?.type === "content_block_delta"
-                    ? json?.delta?.text
-                    : undefined
-                  : json?.choices?.[0]?.delta?.content;
-              if (typeof text === "string" && text.length > 0) {
-                controller.enqueue(encoder.encode(text));
-              }
-            } catch {
-              // Неполный или нестандартный фрагмент пропускаем.
+            const text = parseSSEChunk(line, provider);
+            if (text !== null) {
+              controller.enqueue(encoder.encode(text));
             }
           }
         }
@@ -156,7 +114,7 @@ function toTextStream(
 }
 
 export async function POST(req: Request): Promise<Response> {
-  if (!checkRateLimit(getClientIp(req))) {
+  if (!checkRateLimit(getClientIp(req), rateStore)) {
     return NextResponse.json(
       { error: "Слишком много запросов, подождите минуту" },
       { status: 429 }
@@ -170,28 +128,19 @@ export async function POST(req: Request): Promise<Response> {
     return NextResponse.json({ error: "Некорректный запрос" }, { status: 400 });
   }
 
-  const parsed = ChatRequestSchema.safeParse(body);
-  if (!parsed.success) {
-    const message = parsed.error.issues[0]?.message ?? "Некорректный запрос";
-    return NextResponse.json({ error: message }, { status: 400 });
+  const validated = validateChatRequest(body);
+  if (!isValidatedRequest(validated)) {
+    return NextResponse.json({ error: validated.error }, { status: 400 });
   }
 
-  const { messages } = parsed.data;
+  const { messages } = validated;
   const lastUser = [...messages].reverse().find((m) => m.role === "user");
   if (!lastUser) {
     return NextResponse.json({ error: "Нет сообщения пользователя" }, { status: 400 });
   }
 
-  const providerEnv = process.env.AI_PROVIDER;
-  const provider: ChatProvider =
-    providerEnv === "anthropic" || providerEnv === "openrouter" ? providerEnv : "kimi";
-  const apiKey =
-    provider === "anthropic"
-      ? process.env.ANTHROPIC_API_KEY
-      : provider === "openrouter"
-        ? process.env.OPENROUTER_API_KEY
-        : process.env.KIMI_API_KEY;
-
+  const provider = resolveProvider();
+  const apiKey = getApiKey(provider);
   if (!apiKey) {
     console.error("[chat] AI provider API key is not configured");
     return NextResponse.json({ error: GENERIC_ERROR }, { status: 500 });
@@ -202,22 +151,21 @@ export async function POST(req: Request): Promise<Response> {
     const context = await queries.searchContext(db, lastUser.content);
     const systemPrompt = buildSystemPrompt(context);
 
-    const upstream =
-      provider === "kimi"
-        ? await streamFromKimi(apiKey, systemPrompt, messages)
-        : provider === "openrouter"
-          ? await streamFromOpenRouter(apiKey, systemPrompt, messages)
-          : await streamFromAnthropic(apiKey, systemPrompt, messages);
+    const upstream = await streamFromProvider(provider, apiKey, systemPrompt, messages);
 
     if (!upstream.ok || !upstream.body) {
       console.error(`[chat] provider responded with status ${upstream.status}`);
       return NextResponse.json({ error: GENERIC_ERROR }, { status: 502 });
     }
 
+    // Список slug из контекста — UI сделает кликабельными только ссылки на них.
+    const allowedSlugs = buildAllowedSlugsHeader(context);
+
     return new Response(toTextStream(upstream.body, provider), {
       headers: {
         "Content-Type": "text/plain; charset=utf-8",
         "Cache-Control": "no-store",
+        "X-Context-Slugs": allowedSlugs,
       },
     });
   } catch (err) {
