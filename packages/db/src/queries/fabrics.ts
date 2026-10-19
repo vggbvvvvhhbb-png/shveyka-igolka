@@ -6,12 +6,54 @@ import { withRetry } from "../utils/withRetry";
 
 export type Fabric = typeof fabrics.$inferSelect;
 
+export type FabricSort = "name" | "weight" | "difficulty";
+
 export type FabricFilters = {
   category?: string;
   weight?: WeightClass;
   stretch?: string;
   q?: string;
+  sort?: FabricSort;
+  limit?: number;
+  offset?: number;
 };
+
+/**
+ * Порядок тканей по весу: от лёгких к тяжёлым. Лексикографически
+ * «very_heavy» шёл бы раньше «light», поэтому порядок задан явно.
+ */
+const WEIGHT_ORDER = sql<number>`CASE ${fabrics.weight_class}
+  WHEN 'light' THEN 1
+  WHEN 'medium' THEN 2
+  WHEN 'heavy' THEN 3
+  WHEN 'very_heavy' THEN 4
+  ELSE 5
+END`;
+
+/**
+ * Порядок тканей по сложности работы: от простых к сложным.
+ */
+const DIFFICULTY_ORDER = sql<number>`CASE ${fabrics.difficulty_to_work_with}
+  WHEN 'beginner' THEN 1
+  WHEN 'intermediate' THEN 2
+  WHEN 'advanced' THEN 3
+  ELSE 4
+END`;
+
+/**
+ * Порядок выдачи без учёта релевантности поиска.
+ */
+function buildSortSql(sort: FabricSort | undefined): SQL {
+  switch (sort) {
+    case "weight":
+      return WEIGHT_ORDER;
+    case "difficulty":
+      return DIFFICULTY_ORDER;
+    case "name":
+    default:
+      return asc(fabrics.name);
+  }
+}
 
 /**
  * Поля, по которым ищется ткань, в порядке убывания релевантности.
@@ -147,10 +189,18 @@ export async function searchFabrics(
       query.where(and(...conditions));
     }
 
+    const orderBy: SQL[] = [];
     if (patterns.length > 0) {
-      query.orderBy(buildRelevanceSql(patterns), asc(fabrics.name));
-    } else {
-      query.orderBy(asc(fabrics.name));
+      orderBy.push(buildRelevanceSql(patterns));
+    }
+    orderBy.push(buildSortSql(filters.sort));
+    query.orderBy(...orderBy);
+
+    if (filters.limit !== undefined) {
+      query.limit(filters.limit);
+    }
+    if (filters.offset !== undefined) {
+      query.offset(filters.offset);
     }
 
     return query;
