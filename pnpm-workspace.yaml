@@ -13,3 +13,6 @@ catalog:
   '@ai-sdk/anthropic': ^3.0.47
   '@ai-sdk/mcp': ^1.0.21
   ai: ^6.0.100
+  '@testing-library/react': ^16.3.3
+  '@testing-library/jest-dom': ^6.10.0
+  jsdom: ^26.1.0

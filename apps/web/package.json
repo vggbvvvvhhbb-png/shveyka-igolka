@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "echo 'No tests in web'"
+    "test": "vitest run"
   },
   "dependencies": {
     "@shveyka/core": "workspace:*",
@@ -17,11 +17,15 @@
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "catalog:",
+    "@testing-library/react": "catalog:",
     "@types/node": "^20.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "jsdom": "catalog:",
     "tailwindcss": "^4.0.0",
     "@tailwindcss/postcss": "^4.0.0",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   }
 }
