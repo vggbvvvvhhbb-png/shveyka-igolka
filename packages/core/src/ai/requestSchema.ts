@@ -1,7 +1,9 @@
 import { z } from "zod";
 
 export const ChatMessageSchema = z.object({
-  role: z.enum(["user", "assistant"]),
+  role: z.enum(["user", "assistant"], {
+    errorMap: () => ({ message: "Роль должна быть user или assistant" }),
+  }),
   content: z.string().min(1, "Сообщение пустое").max(1000, "Сообщение длиннее 1000 символов"),
 });
 

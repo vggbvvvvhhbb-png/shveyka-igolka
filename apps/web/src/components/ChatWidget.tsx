@@ -2,41 +2,39 @@
 
 import Link from "next/link";
 import { useState, type FormEvent, type ReactNode } from "react";
+import { parseLinkSegments } from "@shveyka/core";
 
 type Message = { role: "user" | "assistant"; content: string };
 
 const MAX_MESSAGES = 10;
 const MAX_INPUT = 1000;
-const LINK_PATTERN = /\[([^\]]+)\]\((\/(?:fabrics|seams|projects)\/[a-z0-9-]+)\)/g;
 
 /**
  * Превращает ссылки вида [название](/fabrics/slug) в next/link.
- * Остальной текст выводится как есть (React экранирует его сам).
+ * Кликабельными становятся только ссылки на slug из allowedSlugs
+ * (заголовок X-Context-Slugs ответа /api/chat). Остальной текст
+ * выводится как есть (React экранирует его сам).
  */
-function renderContent(text: string): ReactNode[] {
-  const nodes: ReactNode[] = [];
-  let last = 0;
-  let key = 0;
-  for (const match of text.matchAll(LINK_PATTERN)) {
-    const index = match.index ?? 0;
-    if (index > last) nodes.push(text.slice(last, index));
-    nodes.push(
+function renderContent(text: string, allowedSlugs: Set<string>): ReactNode[] {
+  return parseLinkSegments(text, allowedSlugs).map((segment, i) =>
+    segment.kind === "link" ? (
       <Link
-        key={`link-${key++}`}
-        href={match[2]}
+        key={`link-${i}`}
+        href={segment.href}
         className="underline underline-offset-2 hover:text-stone-600"
       >
-        {match[1]}
+        {segment.text}
       </Link>
-    );
-    last = index + match[0].length;
-  }
-  if (last < text.length) nodes.push(text.slice(last));
-  return nodes;
+    ) : (
+      <span key={`text-${i}`}>{segment.text}</span>
+    )
+  );
 }
 
 export function ChatWidget() {
   const [messages, setMessages] = useState<Message[]>([]);
+  // Разрешённые slug последнего ответа ассистента ("тип/slug").
+  const [allowedSlugsByIndex, setAllowedSlugsByIndex] = useState<Record<number, Set<string>>>({});
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -64,6 +62,16 @@ export function ChatWidget() {
         const data = (await res.json().catch(() => null)) as { error?: string } | null;
         throw new Error(data?.error ?? "Не удалось получить ответ, попробуйте позже");
       }
+
+      // Разрешённые slug этого ответа — только они кликабельны.
+      const slugsHeader = res.headers.get("X-Context-Slugs") ?? "";
+      const allowed = new Set(
+        slugsHeader
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean)
+      );
+      setAllowedSlugsByIndex((prev) => ({ ...prev, [history.length]: allowed }));
 
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
@@ -110,7 +118,9 @@ export function ChatWidget() {
                 : "mr-auto max-w-[85%] rounded-2xl bg-stone-100 px-4 py-2 text-stone-800 whitespace-pre-wrap leading-relaxed"
             }
           >
-            {m.role === "assistant" ? renderContent(m.content) : m.content}
+            {m.role === "assistant"
+              ? renderContent(m.content, allowedSlugsByIndex[i] ?? new Set<string>())
+              : m.content}
           </div>
         ))}
       </div>

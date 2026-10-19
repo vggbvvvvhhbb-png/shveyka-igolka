@@ -1,7 +1,7 @@
 import type { DatabaseClient } from "../client";
 import type { AssistantContext } from "@shveyka/core";
 import { AssistantContextSchema } from "@shveyka/core";
-import { searchFabrics } from "./fabrics";
+import { searchFabrics, findFabricsByAliases } from "./fabrics";
 import { listSeams } from "./seams";
 import { listProjects } from "./projects";
 import { withRetry } from "../utils/withRetry";
@@ -73,6 +73,23 @@ export async function searchContext(db: DatabaseClient, query: string): Promise<
       }
       if (found.length >= MAX_FABRICS) break;
     }
+
+    // Алиасы: ищем по словам запроса (нижний регистр) и их основам,
+    // совпадения по name дедуплицируются по id. Приоритет — у searchFabrics.
+    if (found.length < MAX_FABRICS) {
+      const aliasWords = [...new Set(keywords)];
+      for (const word of aliasWords) {
+        const aliasRows = await findFabricsByAliases(db, word);
+        for (const row of aliasRows) {
+          if (!seen.has(row.id)) {
+            seen.add(row.id);
+            found.push(row);
+          }
+        }
+        if (found.length >= MAX_FABRICS) break;
+      }
+    }
+
     return found.slice(0, MAX_FABRICS);
   });
 

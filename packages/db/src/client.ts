@@ -11,7 +11,7 @@ export function createDbClient(connectionString: string) {
   const isDev = process.env.NODE_ENV !== "production";
   const pool = new Pool({
     connectionString,
-    max: 10,
+    max: 5,
     min: isDev ? 2 : 2,
     idleTimeoutMillis: isDev ? 10_000 : 30_000,
     connectionTimeoutMillis: 10_000,

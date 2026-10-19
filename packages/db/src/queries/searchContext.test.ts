@@ -60,7 +60,11 @@ describe("searchContext with pglite", () => {
     await client.exec(`
       INSERT INTO fabrics (id, name, aliases, composition, category, weight_class, density_min_gsm, density_max_gsm, stretch, shrinkage_percent, requires_decatizing, suitable_for, default_machine_settings, recommended_edge_finish, difficulty_to_work_with, care_instructions, common_issues)
       VALUES
-        ('denim', 'Джинса', '["джинса"]', '100% хлопок', 'natural', 'heavy', 300, 450, 'none', 3, true, '["pants_simple"]', '{"needle_type":"jeans"}', '[]', 'intermediate', 'Стирка при 30°C', '["Пропуски стежков"]')
+        ('denim', 'Джинса', '["джинса"]', '100% хлопок', 'natural', 'heavy', 300, 450, 'none', 3, true, '["pants_simple"]', '{"needle_type":"jeans"}', '[]', 'intermediate', 'Стирка при 30°C', '["Пропуски стежков"]'),
+        ('twill-cotton', 'Твил', '["сарафанный хлопок", "твил хлопковый"]', '100% хлопок', 'natural', 'medium', 150, 200, 'none', 4, true, '["dress_summer"]', '{}', '[]', 'beginner', 'Стирка при 40°C', '[]'),
+        ('satin-silk', 'Атлас', '["атлас шёлковый"]', 'Шёлк 100%', 'natural', 'light', 60, 100, 'none', 5, true, '["lining"]', '{}', '[]', 'advanced', 'Ручная стирка', '[]'),
+        ('crepe', 'Креп', '["креп-шифон", "креповый шифон"]', 'Полиэстер 100%', 'synthetic', 'light', 80, 120, 'medium', 3, false, '["dress_summer"]', '{}', '[]', 'advanced', 'Ручная стирка', '[]'),
+        ('wool-coat', 'Костюмная шерсть', '["костюмка", "шерсть костюмная"]', 'Шерсть 80%', 'natural', 'heavy', 250, 400, 'low', 6, true, '["blazer"]', '{}', '[]', 'intermediate', 'Химчистка', '[]')
     `);
 
     await client.exec(`
@@ -136,5 +140,17 @@ describe("searchContext with pglite", () => {
     expect(() => AssistantContextSchema.parse(ctx)).not.toThrow();
     expect(ctx.seams.map((s) => s.slug)).toContain("hem-double-fold");
     expect(ctx.projects.map((p) => p.slug)).toContain("pillowcase-simple");
+  });
+
+  it("задача 5: поиск по алиасу, которого нет в поле name, находит ткань", async () => {
+    // «костюмка» — только в aliases wool-coat, в name его нет.
+    const ctx = await searchContext(db, "что пошить из костюмки");
+    expect(ctx.fabrics.map((f) => f.slug)).toContain("wool-coat");
+  });
+
+  it("задача 5: итоговый список тканей не превышает 4 записей", async () => {
+    // Запрос затрагивает алиасы нескольких тканей — срез всё равно 4.
+    const ctx = await searchContext(db, "атлас костюмка поплин шёлк хлопок");
+    expect(ctx.fabrics.length).toBeLessThanOrEqual(4);
   });
 });
