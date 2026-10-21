@@ -1,0 +1,40 @@
+# Запуск Telegram-бота Shveyka.
+#
+# Бот — обычный Node-процесс с long polling: секретный токен приходит из
+# окружения, в образ не копируется.
+
+FROM node:20-alpine
+
+# pnpm той же версии, что в packageManager в package.json
+RUN npm install -g pnpm@9.12.0
+
+# В контейнере нет git, поэтому хуки husky не ставятся
+ENV HUSKY=0
+
+WORKDIR /app
+
+# Сначала манифесты: слой с зависимостями кешируется.
+# Нужны манифесты ВСЕХ пакетов рабочего пространства, иначе pnpm
+# откажется ставить с --frozen-lockfile: в lockfile есть импортёры
+# всех четырёх пакетов.
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY apps/web/package.json ./apps/web/
+COPY apps/bot/package.json ./apps/bot/
+COPY packages/core/package.json ./packages/core/
+COPY packages/db/package.json ./packages/db/
+
+# Ставим все зависимости, включая dev: бот запускается через tsx,
+# который лежит в devDependencies.
+RUN pnpm install --frozen-lockfile
+
+# Исходники проекта
+COPY . .
+
+ENV NODE_ENV=production
+
+# Бот пишет историю проектов и состояние диалогов в DATA_DIR
+# (по умолчанию ./data внутри apps/bot) — монтируем туда том.
+
+# Запускаем через start, а не dev: dev — это tsx watch, он следит за
+# файлами и перезапускается, а в контейнере это лишнее.
+CMD ["pnpm", "--filter", "@shveyka/bot", "start"]

@@ -1,0 +1,46 @@
+# Сайт и Telegram-бот Shveyka.
+#
+# Перед запуском проверь, что есть файлы с переменными:
+#   .env                  — общие настройки (DATABASE_URL, ключи AI)
+#   apps/web/.env.local   — полный набор для сайта
+#   apps/bot/.env         — BOT_TOKEN, SITE_URL, DATA_DIR
+#
+# Запуск: docker compose up -d --build
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+    # Файлы читаются по порядку: следующий перекрывает предыдущий.
+    env_file:
+      - .env
+      - apps/web/.env.local
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+    healthcheck:
+      # Главная страница статическая, базу не дёргает
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  bot:
+    build:
+      context: .
+      dockerfile: Dockerfile.bot
+    env_file:
+      - .env
+      - apps/bot/.env
+    volumes:
+      # История проектов и состояние диалогов переживают пересборку
+      - bot-data:/app/apps/bot/data
+    restart: unless-stopped
+    # init: tini становится PID 1 и передаёт боту SIGTERM —
+    # бот корректно завершает long polling
+    init: true
+
+volumes:
+  bot-data:
