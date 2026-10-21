@@ -33,6 +33,34 @@ const sections = [
   },
 ];
 
+const calculators = [
+  {
+    title: "Раскрой",
+    description: "Сколько метров ткани брать и какая ширина рулона выгоднее.",
+    href: "/calculator",
+  },
+  {
+    title: "Выгода",
+    description: "Своё изделие против цены в магазине: полная себестоимость.",
+    href: "/profit",
+  },
+  {
+    title: "Аналог ткани",
+    description: "Подберём похожую ткань подешевле и покажем отличия.",
+    href: "/analog",
+  },
+  {
+    title: "Фурнитура",
+    description: "Список покупок: пуговицы, молнии, нитки и резинки.",
+    href: "/hardware",
+  },
+  {
+    title: "Уход",
+    description: "Инструкция по уходу по составу ткани — как на бирке.",
+    href: "/care",
+  },
+];
+
 export default function HomePage() {
   return (
     <div className="space-y-10">
@@ -65,6 +93,26 @@ export default function HomePage() {
             )}
           </div>
         ))}
+      </section>
+
+      {/* Калькуляторы */}
+      <section className="space-y-4">
+        <div className="space-y-1">
+          <h2 className="text-2xl font-semibold text-stone-900">Калькуляторы</h2>
+          <p className="text-stone-600">Считают сами — помощник зовётся, если нужно уточнить.</p>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {calculators.map((c) => (
+            <Link
+              key={c.href}
+              href={c.href}
+              className="rounded-2xl border border-stone-200 bg-white p-5 flex flex-col gap-2 transition-colors hover:bg-stone-50"
+            >
+              <span className="text-lg font-semibold text-stone-900">{c.title}</span>
+              <span className="text-stone-600 leading-relaxed">{c.description}</span>
+            </Link>
+          ))}
+        </div>
       </section>
     </div>
   );
