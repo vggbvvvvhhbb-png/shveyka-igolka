@@ -1,0 +1,37 @@
+# Контекст сборки образа: всё, что тут перечислено, в образ не попадает.
+
+# Зависимости и результаты прошлых сборок
+node_modules
+**/node_modules
+.next
+**/.next
+dist
+**/dist
+.turbo
+**/.turbo
+*.tsbuildinfo
+**/*.tsbuildinfo
+
+# Секреты: DATABASE_URL, ключи AI.
+# В образе их быть не должно — они приходят из окружения при запуске.
+.env
+**/.env
+.env.*
+**/.env.*
+
+# Git и CI
+.git
+.github
+
+# Кэши, логи, отчёты о покрытии
+*.log
+**/*.log
+coverage
+**/coverage
+.devlog
+
+# Документация и редакторские настройки
+docs
+*.md
+.vscode
+.idea

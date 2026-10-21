@@ -1,0 +1,44 @@
+# Сборка и запуск сайта Shveyka.
+#
+# Один этап: `next build` кладёт .next, `next start` его отдаёт.
+# Приватные переменные (DATABASE_URL и ключи AI) в образ не попадают —
+# они приходят из окружения при запуске контейнера.
+
+FROM node:20-alpine
+
+# pnpm той же версии, что в packageManager в package.json
+RUN npm install -g pnpm@9.12.0
+
+# В контейнере нет git, поэтому хуки husky не ставятся.
+# Телеметрия Next не нужна.
+ENV HUSKY=0 \
+    NEXT_TELEMETRY_DISABLED=1
+
+WORKDIR /app
+
+# Сначала манифесты: слой с зависимостями кешируется и не пересобирается
+# при каждом изменении исходников.
+# Нужны манифесты ВСЕХ пакетов рабочего пространства, иначе pnpm
+# откажется ставить с --frozen-lockfile.
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY apps/web/package.json ./apps/web/
+COPY packages/core/package.json ./packages/core/
+COPY packages/db/package.json ./packages/db/
+
+# Ставим все зависимости, включая dev: typescript и @types нужны сборке.
+# NODE_ENV=production на этом шаге ставить нельзя — pnpm пропустил бы
+# devDependencies и next build упал бы.
+RUN pnpm install --frozen-lockfile
+
+# Исходники проекта
+COPY . .
+
+# Страницы, которые ходят в базу, помечены force-dynamic, поэтому на этапе
+# сборки DATABASE_URL не нужен — он требуется только при работе сайта.
+RUN pnpm --filter @shveyka/web build
+
+ENV NODE_ENV=production
+
+EXPOSE 3000
+
+CMD ["pnpm", "--filter", "@shveyka/web", "start"]

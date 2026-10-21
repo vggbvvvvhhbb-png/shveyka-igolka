@@ -1,0 +1,7 @@
+# Файлы деплоя едут на Linux-сервер: храним и отдаём их с LF.
+# CRLF в shell-скрипте ломает shebang, в Dockerfile и Caddyfile — лишние символы.
+*.sh text eol=lf
+Dockerfile.web text eol=lf
+Caddyfile text eol=lf
+docker-compose.yml text eol=lf
+.dockerignore text eol=lf

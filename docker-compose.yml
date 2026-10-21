@@ -1,0 +1,39 @@
+# Сайт Shveyka: Next.js за Caddy (автоматический HTTPS).
+#
+# Перед запуском проверь, что есть файл с переменными:
+#   .env — общие настройки (DATABASE_URL, ключи AI)
+#
+# Запуск: docker compose up -d --build
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+    env_file:
+      - .env
+    expose:
+      - "3000"
+    restart: unless-stopped
+    healthcheck:
+      # Главная страница статическая, базу не дёргает
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  caddy:
+    image: caddy:2-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    restart: unless-stopped
+
+volumes:
+  caddy_data:
+  caddy_config:
