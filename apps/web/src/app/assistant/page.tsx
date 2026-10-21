@@ -5,7 +5,20 @@ export const metadata = {
   description: "Консультант по шитью: ткани, швы, проекты и настройки Brother LS-200s.",
 };
 
-export default function AssistantPage() {
+/**
+ * Страница помощника.
+ *
+ * Параметр ?q= — это готовый вопрос с другого экрана (например, из
+ * калькулятора): помощник отправляет его сам, маме остаётся только прочитать
+ * ответ.
+ */
+export default async function AssistantPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>;
+}) {
+  const { q } = await searchParams;
+
   return (
     <div className="space-y-6 max-w-3xl mx-auto">
       <div className="space-y-1">
@@ -15,7 +28,7 @@ export default function AssistantPage() {
         </p>
       </div>
 
-      <ChatWidget />
+      <ChatWidget initialMessage={q} />
     </div>
   );
 }

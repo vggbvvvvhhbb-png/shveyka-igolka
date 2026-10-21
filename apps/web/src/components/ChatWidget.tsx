@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, type FormEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { parseLinkSegments } from "@shveyka/core";
 
 type Message = { role: "user" | "assistant"; content: string };
@@ -31,70 +31,92 @@ function renderContent(text: string, allowedSlugs: Set<string>): ReactNode[] {
   );
 }
 
-export function ChatWidget() {
+/**
+ * Чат помощника.
+ *
+ * initialMessage — готовый вопрос с другого экрана (например, из
+ * калькулятора): он отправляется сам, без лишнего нажатия.
+ */
+export function ChatWidget({ initialMessage }: { initialMessage?: string }) {
   const [messages, setMessages] = useState<Message[]>([]);
   // Разрешённые slug последнего ответа ассистента ("тип/slug").
   const [allowedSlugsByIndex, setAllowedSlugsByIndex] = useState<Record<number, Set<string>>>({});
-  const [input, setInput] = useState("");
+  const [input, setInput] = useState(initialMessage?.slice(0, MAX_INPUT) ?? "");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const sendMessage = useCallback(
+    async (raw: string) => {
+      const text = raw.trim();
+      if (loading || !text) return;
+
+      const userMessage: Message = { role: "user", content: text };
+      const history: Message[] = [...messages, userMessage].slice(-MAX_MESSAGES);
+      setMessages([...history, { role: "assistant", content: "" }]);
+      setInput("");
+      setLoading(true);
+      setError(null);
+
+      try {
+        const res = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ messages: history }),
+        });
+
+        if (!res.ok || !res.body) {
+          const data = (await res.json().catch(() => null)) as { error?: string } | null;
+          throw new Error(data?.error ?? "Не удалось получить ответ, попробуйте позже");
+        }
+
+        // Разрешённые slug этого ответа — только они кликабельны.
+        const slugsHeader = res.headers.get("X-Context-Slugs") ?? "";
+        const allowed = new Set(
+          slugsHeader
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean)
+        );
+        setAllowedSlugsByIndex((prev) => ({ ...prev, [history.length]: allowed }));
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          const chunk = decoder.decode(value, { stream: true });
+          setMessages((prev) => {
+            const copy = [...prev];
+            const last = copy[copy.length - 1];
+            copy[copy.length - 1] = { ...last, content: last.content + chunk };
+            return copy;
+          });
+        }
+      } catch (err) {
+        const msg =
+          err instanceof Error ? err.message : "Не удалось получить ответ, попробуйте позже";
+        setError(msg);
+        setMessages((prev) => prev.slice(0, -1));
+      } finally {
+        setLoading(false);
+      }
+    },
+    [messages, loading]
+  );
+
   async function send(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    const text = input.trim();
-    if (loading || !text) return;
-
-    const userMessage: Message = { role: "user", content: text };
-    const history: Message[] = [...messages, userMessage].slice(-MAX_MESSAGES);
-    setMessages([...history, { role: "assistant", content: "" }]);
-    setInput("");
-    setLoading(true);
-    setError(null);
-
-    try {
-      const res = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: history }),
-      });
-
-      if (!res.ok || !res.body) {
-        const data = (await res.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(data?.error ?? "Не удалось получить ответ, попробуйте позже");
-      }
-
-      // Разрешённые slug этого ответа — только они кликабельны.
-      const slugsHeader = res.headers.get("X-Context-Slugs") ?? "";
-      const allowed = new Set(
-        slugsHeader
-          .split(",")
-          .map((s) => s.trim())
-          .filter(Boolean)
-      );
-      setAllowedSlugsByIndex((prev) => ({ ...prev, [history.length]: allowed }));
-
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        const chunk = decoder.decode(value, { stream: true });
-        setMessages((prev) => {
-          const copy = [...prev];
-          const last = copy[copy.length - 1];
-          copy[copy.length - 1] = { ...last, content: last.content + chunk };
-          return copy;
-        });
-      }
-    } catch (err) {
-      const msg =
-        err instanceof Error ? err.message : "Не удалось получить ответ, попробуйте позже";
-      setError(msg);
-      setMessages((prev) => prev.slice(0, -1));
-    } finally {
-      setLoading(false);
-    }
+    await sendMessage(input);
   }
+
+  // Вопрос из ссылки отправляем один раз, при открытии страницы.
+  const autoSent = useRef(false);
+  useEffect(() => {
+    const initial = initialMessage?.trim();
+    if (!initial || autoSent.current) return;
+    autoSent.current = true;
+    void sendMessage(initial);
+  }, [initialMessage, sendMessage]);
 
   function onInputChange(value: string) {
     setInput(value.slice(0, MAX_INPUT));
