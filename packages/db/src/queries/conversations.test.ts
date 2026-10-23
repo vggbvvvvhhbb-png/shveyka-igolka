@@ -39,6 +39,7 @@ describe("диалоги в pglite", () => {
         conversation_id TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
         role TEXT NOT NULL,
         content TEXT NOT NULL,
+        context_slugs JSONB NOT NULL DEFAULT '[]'::jsonb,
         created_at TIMESTAMPTZ DEFAULT NOW()
       )
     `);
@@ -148,5 +149,26 @@ describe("диалоги в pglite", () => {
 
   it("удаление неизвестного диалога возвращает false", async () => {
     expect(await deleteConversation(db, "нет-такого")).toBe(false);
+  });
+
+  it("сохраняет записи каталога из контекста ответа", async () => {
+    const conversation = await createConversation(db);
+
+    await addMessage(db, conversation.id, "assistant", "Ответ", "id-ответа", [
+      "fabrics/linen",
+      "seams/hem-double-fold",
+    ]);
+
+    const messages = await listMessages(db, conversation.id);
+    expect(messages[0].context_slugs).toEqual(["fabrics/linen", "seams/hem-double-fold"]);
+  });
+
+  it("у сообщения без контекста список записей пустой", async () => {
+    const conversation = await createConversation(db);
+
+    await addMessage(db, conversation.id, "user", "Вопрос");
+
+    const messages = await listMessages(db, conversation.id);
+    expect(messages[0].context_slugs).toEqual([]);
   });
 });

@@ -120,6 +120,23 @@ export function checkRateLimit(ip: string, store: RateStore, now: number = Date.
 }
 
 /**
+ * Записи каталога, попавшие в контекст ответа, в формате "тип/slug".
+ * Этот же список сохраняется вместе с ответом, чтобы в открытом заново
+ * диалоге ссылки на каталог снова были кликабельными.
+ */
+export function collectContextSlugs(context: {
+  fabrics: { slug: string }[];
+  seams: { slug: string }[];
+  projects: { slug: string }[];
+}): string[] {
+  return [
+    ...context.fabrics.map((f) => `fabrics/${f.slug}`),
+    ...context.seams.map((s) => `seams/${s.slug}`),
+    ...context.projects.map((p) => `projects/${p.slug}`),
+  ];
+}
+
+/**
  * Список разрешённых slug контекста в формате "тип/slug" для заголовка
  * X-Context-Slugs. Строка обрезается до maxLength символов.
  */
@@ -131,11 +148,7 @@ export function buildAllowedSlugsHeader(
   },
   maxLength = MAX_CONTEXT_SLUGS_LENGTH
 ): string {
-  const slugs = [
-    ...context.fabrics.map((f) => `fabrics/${f.slug}`),
-    ...context.seams.map((s) => `seams/${s.slug}`),
-    ...context.projects.map((p) => `projects/${p.slug}`),
-  ];
+  const slugs = collectContextSlugs(context);
   let result = "";
   for (const slug of slugs) {
     const next = result ? `${result},${slug}` : slug;

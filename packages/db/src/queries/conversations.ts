@@ -64,12 +64,17 @@ export async function listConversations(db: DatabaseClient): Promise<Conversatio
  * Добавляет сообщение в диалог и обновляет его updated_at.
  * Если заголовка ещё нет, он составляется из первого сообщения пользователя.
  * Для несуществующего диалога возвращается undefined.
+ * id можно задать заранее: так клиент узнаёт id ответа до его сохранения.
+ * contextSlugs — записи каталога из контекста ответа ассистента; по ним
+ * открытый заново диалог снова показывает кликабельные ссылки на каталог.
  */
 export async function addMessage(
   db: DatabaseClient,
   conversationId: string,
   role: MessageRole,
-  content: string
+  content: string,
+  id: string = crypto.randomUUID(),
+  contextSlugs: string[] = []
 ): Promise<ConversationMessage | undefined> {
   return withRetry(async () => {
     const conversationRows = await db
@@ -82,7 +87,7 @@ export async function addMessage(
 
     const inserted = await db
       .insert(messages)
-      .values({ id: crypto.randomUUID(), conversation_id: conversationId, role, content })
+      .values({ id, conversation_id: conversationId, role, content, context_slugs: contextSlugs })
       .returning();
 
     const title = !conversation.title && role === "user" ? buildTitle(content) : conversation.title;

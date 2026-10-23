@@ -11,3 +11,6 @@ export * from "./projects";
 export * from "./searchContext";
 export * from "./conversations";
 export * from "./measurements";
+export * from "./feedback";
+export * from "./sewn";
+export * from "./matchData";
