@@ -26,6 +26,8 @@ export const config = {
   siteUrl: (process.env.SITE_URL ?? "").replace(/\/+$/, ""),
   /** Папка, где бот хранит состояние диалогов и историю проектов. */
   dataDir: path.resolve(packageRoot, process.env.DATA_DIR ?? "./data"),
+  /** Адрес сайта изнутри сети: бот пишет в тот же журнал, что и страница. */
+  webApiUrl: (process.env.WEB_API_URL ?? "http://web:3000").replace(/\/+$/, ""),
   /** Telegram ID пользователей с доступом. Пусто — доступ у всех. */
   allowedIds: (process.env.ALLOWED_USER_IDS ?? "")
     .split(",")
