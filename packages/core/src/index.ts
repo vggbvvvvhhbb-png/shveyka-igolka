@@ -18,6 +18,7 @@ export * from "./ai/providers";
 export * from "./ai/routeLogic";
 export * from "./api/ids";
 export * from "./ai/feedback";
+export * from "./compat/projectFabric";
 export * from "./sewing/validate";
 export * from "./sewing/stats";
 export * from "./sewing/command";
