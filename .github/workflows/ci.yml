@@ -1,36 +1,26 @@
 name: CI
 
 on:
+  pull_request:
   push:
     branches: [main]
-  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  ci:
+  check:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 9.12.0
-
+      - uses: pnpm/action-setup@v4 # версия pnpm берётся из packageManager
       - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: pnpm
-
-      - name: Установка зависимостей
-        run: pnpm install --frozen-lockfile
-
-      - name: Проверка типов
-        run: pnpm typecheck
-
-      - name: Линт
-        run: pnpm lint
-
-      - name: Тесты
-        run: pnpm test
-
-      - name: Сборка
-        run: pnpm build
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm build
