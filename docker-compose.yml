@@ -1,7 +1,8 @@
-# Сайт Shveyka: Next.js за Caddy (автоматический HTTPS).
+# Shveyka: сайт, Telegram-бот и обратный прокси.
 #
-# Перед запуском проверь, что есть файл с переменными:
-#   .env — общие настройки (DATABASE_URL, ключи AI)
+# Перед запуском проверь, что есть файлы с переменными:
+#   .env                — общие настройки (DATABASE_URL, ключи AI)
+#   apps/bot/.env       — BOT_TOKEN, SITE_URL, DATA_DIR
 #
 # Запуск: docker compose up -d --build
 
@@ -10,6 +11,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.web
+    # Файлы читаются по порядку: следующий перекрывает предыдущий.
     env_file:
       - .env
     expose:
@@ -23,6 +25,21 @@ services:
       retries: 3
       start_period: 20s
 
+  bot:
+    build:
+      context: .
+      dockerfile: Dockerfile.bot
+    env_file:
+      - .env
+      - apps/bot/.env
+    volumes:
+      # История проектов и состояние диалогов переживают пересборку
+      - bot-data:/app/apps/bot/data
+    restart: unless-stopped
+    # init: tini становится PID 1 и передаёт боту SIGTERM —
+    # бот корректно завершает long polling
+    init: true
+
   caddy:
     image: caddy:2-alpine
     ports:
@@ -33,7 +50,10 @@ services:
       - caddy_data:/data
       - caddy_config:/config
     restart: unless-stopped
+    depends_on:
+      - web
 
 volumes:
+  bot-data:
   caddy_data:
   caddy_config:

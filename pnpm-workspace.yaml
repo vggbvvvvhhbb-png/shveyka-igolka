@@ -17,3 +17,9 @@ catalog:
   '@testing-library/jest-dom': ^6.10.0
   jsdom: ^26.1.0
   qrcode.react: ^4.2.0
+  grammy: ^1.46.0
+  '@grammyjs/storage-file': ^2.6.0
+  qrcode: ^1.5.4
+  '@types/qrcode': ^1.5.6
+  dotenv: ^16.4.0
+  tsx: ^4.23.15

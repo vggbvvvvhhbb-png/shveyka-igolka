@@ -17,3 +17,6 @@ dev-log.txt
 *.tsbuildinfo
 .clinerules
 ~$*
+
+# Данные бота: сессии диалогов и история проектов
+apps/bot/data/

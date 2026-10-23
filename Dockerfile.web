@@ -19,9 +19,10 @@ WORKDIR /app
 # Сначала манифесты: слой с зависимостями кешируется и не пересобирается
 # при каждом изменении исходников.
 # Нужны манифесты ВСЕХ пакетов рабочего пространства, иначе pnpm
-# откажется ставить с --frozen-lockfile.
+# откажется ставить с --frozen-lockfile: в lockfile есть импортёр apps/bot.
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/web/package.json ./apps/web/
+COPY apps/bot/package.json ./apps/bot/
 COPY packages/core/package.json ./packages/core/
 COPY packages/db/package.json ./packages/db/
 
