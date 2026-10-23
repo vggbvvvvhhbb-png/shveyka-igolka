@@ -58,6 +58,11 @@ export default async function FabricDetailPage({ params }: { params: Promise<{ s
   const hasSeams =
     Array.isArray(fabric.recommended_edge_finish) && fabric.recommended_edge_finish.length > 0;
 
+  // Ткань хранит обработки среза как slug — на странице показываем названия.
+  const seamNames = hasSeams
+    ? await queries.getSeamNames(db, fabric.recommended_edge_finish)
+    : new Map<string, string>();
+
   return (
     <div className="space-y-8 max-w-3xl mx-auto">
       {/* Breadcrumbs */}
@@ -171,7 +176,7 @@ export default async function FabricDetailPage({ params }: { params: Promise<{ s
                   href={`/seams/${seamSlug}`}
                   className="text-stone-800 hover:text-stone-600 underline underline-offset-2"
                 >
-                  {seamSlug.replace(/-/g, " ")}
+                  {seamNames.get(seamSlug) ?? seamSlug.replace(/-/g, " ")}
                 </Link>
               </li>
             ))}
