@@ -1,48 +1,186 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import {
+  buildMonthStats,
+  isAlreadyStored,
+  LEGACY_PROJECTS_KEY,
+  parseSewnItems,
+  parseStoredProjects,
+  storedProjectToSewnInput,
+  type SewnItem,
+} from "@shveyka/core";
 import {
   calcProfit,
   DEFAULT_PROFIT_INPUT,
-  monthStats,
   type ProfitInput,
-  type ProjectEntry,
 } from "@shveyka/core/calculator/profit";
 import { btnCls, Card, Check, Field, inputCls, NumberField, PageShell } from "@/components/ui";
 import { countPhrase, rub } from "@/lib/format";
-import { useLocalStorage } from "@/lib/useLocalStorage";
+
+/** Ответ сервера на GET /api/sewn. */
+interface SewnResponse {
+  items: unknown[];
+}
+
+const MONTH_NAMES = [
+  "январь",
+  "февраль",
+  "март",
+  "апрель",
+  "май",
+  "июнь",
+  "июль",
+  "август",
+  "сентябрь",
+  "октябрь",
+  "ноябрь",
+  "декабрь",
+];
 
 export default function ProfitPage() {
   const [form, setForm] = useState<ProfitInput>(DEFAULT_PROFIT_INPUT);
   const [title, setTitle] = useState("");
   const [gift, setGift] = useState(false);
-  const [history, setHistory] = useLocalStorage<ProjectEntry[]>("sewing:projects", []);
+  const [items, setItems] = useState<SewnItem[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  // id записи, для которой уже спросили подтверждение удаления.
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
 
   const set = (k: keyof ProfitInput) => (v: number) => setForm((f) => ({ ...f, [k]: v }));
 
   const r = calcProfit(form);
 
   const now = new Date();
-  const ym = now.toISOString().slice(0, 7);
-  const monthName = now.toLocaleDateString("ru-RU", { month: "long" });
-  const stats = monthStats(history, ym);
+  const year = now.getUTCFullYear();
+  const month = now.getUTCMonth();
+  const monthName = MONTH_NAMES[month];
+  const stats = buildMonthStats(items, year, month);
 
-  function save() {
+  const loadItems = useCallback(async () => {
+    const res = await fetch("/api/sewn");
+    if (!res.ok) throw new Error("Не удалось загрузить журнал");
+    const data = (await res.json()) as SewnResponse;
+    const parsed = parseSewnItems(data.items);
+    setItems(parsed);
+    return parsed;
+  }, []);
+
+  /**
+   * Перенос старой истории из браузера в журнал.
+   *
+   * Раньше калькулятор хранил проекты в localStorage: они были видны только
+   * на этом устройстве. Теперь журнал общий для сайта и бота, поэтому старые
+   * записи переносятся в него один раз. Ключ удаляется только после того,
+   * как все записи приняты сервером, — иначе они потерялись бы.
+   */
+  useEffect(() => {
+    let cancelled = false;
+
+    async function run() {
+      let current: SewnItem[] = [];
+      try {
+        current = await loadItems();
+      } catch {
+        if (!cancelled) setError("Не удалось загрузить журнал");
+        return;
+      }
+
+      let legacy: ReturnType<typeof parseStoredProjects> = [];
+      try {
+        legacy = parseStoredProjects(localStorage.getItem(LEGACY_PROJECTS_KEY));
+      } catch {
+        legacy = [];
+      }
+      if (legacy.length === 0) return;
+
+      const known = current.map((item) => ({
+        name: item.name,
+        cost: item.cost,
+        marketPrice: item.marketPrice,
+        date: item.sewnAt.toISOString().slice(0, 10),
+        gift: item.gift,
+      }));
+
+      const pending = legacy.filter((entry) => !isAlreadyStored(entry, known));
+      if (pending.length === 0) {
+        localStorage.removeItem(LEGACY_PROJECTS_KEY);
+        return;
+      }
+
+      let saved = 0;
+      for (const entry of pending) {
+        try {
+          const res = await fetch("/api/sewn", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(storedProjectToSewnInput(entry)),
+          });
+          if (res.ok) {
+            saved += 1;
+            continue;
+          }
+          // Лимит запросов: остальные записи перенесутся при следующем открытии.
+          if (res.status === 429) break;
+        } catch {
+          /* запись не перенеслась — попробуем при следующем открытии */
+        }
+      }
+
+      if (cancelled) return;
+      if (saved === pending.length) {
+        // Всё перенесено — старые записи в браузере больше не нужны.
+        localStorage.removeItem(LEGACY_PROJECTS_KEY);
+        await loadItems();
+      }
+    }
+
+    void run();
+    return () => {
+      cancelled = true;
+    };
+  }, [loadItems]);
+
+  async function save() {
     if (r.cost <= 0) return;
-    setHistory([
-      {
-        id: Date.now(),
-        title: title.trim() || "Без названия",
-        date: now.toISOString().slice(0, 10),
-        gift,
-        cost: Math.round(r.cost),
-        shopPrice: form.shopPrice,
-      },
-      ...history,
-    ]);
-    setTitle("");
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/sewn", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: title.trim() || "Без названия",
+          cost: Math.round(r.cost),
+          marketPrice: form.shopPrice > 0 ? Math.round(form.shopPrice) : null,
+          gift,
+        }),
+      });
+      if (!res.ok) {
+        const data = (await res.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(data?.error ?? "Не удалось сохранить");
+      }
+      setTitle("");
+      await loadItems();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Не удалось сохранить");
+    } finally {
+      setBusy(false);
+    }
   }
 
+  async function remove(id: string) {
+    setError(null);
+    setConfirmingId(null);
+    try {
+      const res = await fetch(`/api/sewn/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Не удалось удалить запись");
+      await loadItems();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Не удалось удалить запись");
+    }
+  }
   return (
     <PageShell
       title="Выгодно ли шить самой?"
@@ -143,9 +281,14 @@ export default function ProfitPage() {
             />
           </Field>
           <Check label="Это подарок (не считать в экономию)" checked={gift} onChange={setGift} />
-          <button className={btnCls} onClick={save} disabled={r.cost <= 0}>
-            Сохранить в историю
+          <button className={btnCls} onClick={save} disabled={r.cost <= 0 || busy}>
+            {busy ? "Сохраняю…" : "Сохранить в историю"}
           </button>
+          {error && (
+            <p role="alert" className="text-sm text-red-700">
+              {error}
+            </p>
+          )}
         </div>
       </Card>
 
@@ -172,27 +315,34 @@ export default function ProfitPage() {
         )}
       </Card>
 
-      {history.length > 0 && (
+      {items.length > 0 && (
         <Card title="История проектов">
           <ul className="space-y-1 text-sm">
-            {history.map((h) => (
-              <li key={h.id} className="flex justify-between gap-2">
+            {items.map((item) => (
+              <li key={item.id} className="flex justify-between gap-2">
                 <span>
-                  {h.gift ? "🎁 " : ""}
-                  {h.title} · {h.date}
+                  {item.gift ? "🎁 " : ""}
+                  {item.name} · {item.sewnAt.toISOString().slice(0, 10)}
                 </span>
                 <span className="flex gap-3">
                   <span>
-                    {rub(h.cost)}
-                    {!h.gift && h.shopPrice > h.cost && (
-                      <span className="text-emerald-700"> (−{rub(h.shopPrice - h.cost)})</span>
+                    {rub(item.cost)}
+                    {!item.gift && item.marketPrice !== null && item.marketPrice > item.cost && (
+                      <span className="text-emerald-700">
+                        {" "}
+                        (−{rub(item.marketPrice - item.cost)})
+                      </span>
                     )}
                   </span>
                   <button
                     className="text-stone-500 underline"
-                    onClick={() => setHistory(history.filter((x) => x.id !== h.id))}
+                    onClick={() =>
+                      confirmingId === item.id ? void remove(item.id) : setConfirmingId(item.id)
+                    }
+                    onBlur={() => setConfirmingId(null)}
+                    aria-label={`Удалить ${item.name}`}
                   >
-                    ×
+                    {confirmingId === item.id ? "Точно удалить?" : "×"}
                   </button>
                 </span>
               </li>

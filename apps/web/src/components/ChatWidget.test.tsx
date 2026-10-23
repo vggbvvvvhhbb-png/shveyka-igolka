@@ -170,4 +170,44 @@ describe("ChatWidget", () => {
 
     expect(fetch).not.toHaveBeenCalled();
   });
+
+  it("в открытом диалоге снова делает ссылки на каталог кликабельными", () => {
+    render(
+      <ChatWidget
+        conversationId="11111111-1111-1111-1111-111111111111"
+        initialMessages={[
+          { role: "user", content: "Что взять?" },
+          {
+            role: "assistant",
+            content: "Возьмите [Джинса](/fabrics/denim).",
+            id: "22222222-2222-2222-2222-222222222222",
+            slugs: ["fabrics/denim"],
+          },
+        ]}
+      />
+    );
+
+    const link = screen.getByRole("link", { name: "Джинса" });
+    expect(link).toHaveAttribute("href", "/fabrics/denim");
+  });
+
+  it("в открытом диалоге не делает ссылкой чужой slug", () => {
+    render(
+      <ChatWidget
+        conversationId="11111111-1111-1111-1111-111111111111"
+        initialMessages={[
+          {
+            role: "assistant",
+            content: "Возьмите [Джинса](/fabrics/denim) или [Шёлк](/fabrics/silk-ghost).",
+            id: "22222222-2222-2222-2222-222222222222",
+            slugs: ["fabrics/denim"],
+          },
+        ]}
+      />
+    );
+
+    expect(screen.getByRole("link", { name: "Джинса" })).toHaveAttribute("href", "/fabrics/denim");
+    expect(screen.queryByRole("link", { name: "Шёлк" })).not.toBeInTheDocument();
+    expect(screen.getByText(/Шёлк/)).toBeInTheDocument();
+  });
 });

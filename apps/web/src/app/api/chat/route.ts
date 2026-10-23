@@ -3,6 +3,7 @@ import {
   buildAllowedSlugsHeader,
   buildRequestBody,
   checkRateLimit,
+  collectContextSlugs,
   createRequestId,
   isValidatedRequest,
   parseSSEChunk,
@@ -16,6 +17,7 @@ import {
 } from "@shveyka/core";
 import { getDbSingleton, queries } from "@shveyka/db";
 import { errorResponse, logFailure } from "@/lib/apiResponse";
+import { saveAssistantTurn, saveUserTurn } from "@/lib/chatHistory";
 
 export const dynamic = "force-dynamic";
 
@@ -86,14 +88,20 @@ async function streamFromProvider(
 /**
  * Превращает SSE-поток провайдера в текстовый стрим для клиента.
  * Разбор строк — в parseSSEChunk (@shveyka/core), оттестирован без сети.
+ *
+ * onComplete получает полный текст ответа и выполняется до закрытия потока:
+ * когда клиент увидел конец ответа, сообщение уже лежит в истории и его можно
+ * оценивать.
  */
 function toTextStream(
   upstream: ReadableStream<Uint8Array>,
-  provider: ChatProvider
+  provider: ChatProvider,
+  onComplete?: (fullText: string) => Promise<void>
 ): ReadableStream<Uint8Array> {
   const decoder = new TextDecoder();
   const encoder = new TextEncoder();
   let buffer = "";
+  let fullText = "";
 
   return new ReadableStream<Uint8Array>({
     async start(controller) {
@@ -110,10 +118,12 @@ function toTextStream(
             buffer = buffer.slice(idx + 1);
             const text = parseSSEChunk(line, provider);
             if (text !== null) {
+              fullText += text;
               controller.enqueue(encoder.encode(text));
             }
           }
         }
+        await onComplete?.(fullText);
         controller.close();
       } catch {
         controller.error(new Error(GENERIC_ERROR));
@@ -161,6 +171,15 @@ export async function POST(req: Request): Promise<Response> {
     const context = await queries.searchContext(db, lastUser.content);
     const systemPrompt = buildSystemPrompt(context);
 
+    // История: вопрос сохраняется сразу, ответ — когда стрим дочитан.
+    const conversationId = await saveUserTurn(
+      db,
+      requestId,
+      req.headers.get("x-conversation-id"),
+      lastUser.content
+    );
+    const assistantMessageId = crypto.randomUUID();
+
     const upstream = await streamFromProvider(provider, apiKey, systemPrompt, messages);
 
     if (!upstream.ok || !upstream.body) {
@@ -175,14 +194,32 @@ export async function POST(req: Request): Promise<Response> {
     }
 
     // Список slug из контекста — UI сделает кликабельными только ссылки на них.
+    // Тот же список сохраняется вместе с ответом: в открытом заново диалоге
+    // ссылки на каталог снова кликабельны.
+    const contextSlugs = collectContextSlugs(context);
     const allowedSlugs = buildAllowedSlugsHeader(context);
 
-    return new Response(toTextStream(upstream.body, provider), {
+    const onComplete = conversationId
+      ? (fullText: string) =>
+          saveAssistantTurn(
+            db,
+            requestId,
+            conversationId,
+            assistantMessageId,
+            fullText,
+            contextSlugs
+          )
+      : undefined;
+
+    return new Response(toTextStream(upstream.body, provider, onComplete), {
       headers: {
         "Content-Type": "text/plain; charset=utf-8",
         "Cache-Control": "no-store",
         "X-Context-Slugs": allowedSlugs,
         "X-Request-Id": requestId,
+        ...(conversationId
+          ? { "X-Conversation-Id": conversationId, "X-Message-Id": assistantMessageId }
+          : {}),
       },
     });
   } catch (err) {
