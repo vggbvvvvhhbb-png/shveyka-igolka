@@ -19,3 +19,4 @@ export * from "./ai/prepareChat";
 export * from "./ai/answerCache";
 export * from "./ai/rateLimitStore";
 export * from "./diagrams/seamSvg";
+export * from "./onboarding/recommend";

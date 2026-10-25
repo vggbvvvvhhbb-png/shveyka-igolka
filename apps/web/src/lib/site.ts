@@ -18,6 +18,7 @@ export const STATIC_PAGES = [
   "/seams",
   "/projects",
   "/assistant",
+  "/start",
   "/calculator",
   "/profit",
   "/analog",
