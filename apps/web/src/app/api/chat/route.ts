@@ -25,6 +25,7 @@ import {
 import { getDbSingleton, queries } from "@shveyka/db";
 import { errorResponse, logFailure } from "@/lib/apiResponse";
 import { clientIp, limitRequest } from "@/lib/guard";
+import { requestIsOwner } from "@/lib/owner";
 import { loadCatalog, poolOf } from "@/lib/catalog";
 
 export const dynamic = "force-dynamic";
@@ -181,12 +182,18 @@ export async function POST(req: Request): Promise<Response> {
     const db = getDbSingleton();
     const catalog = await loadCatalog();
 
+    // Мерки — личные данные владельца. Чужому посетителю они не достаются,
+    // поэтому в ответ подставляются только по ключу владельца.
+    const owner = requestIsOwner(req);
+
     // Контекст страницы, поиск по вопросу, режим ответа и мягкий отказ
     // собираются в одной функции — маршрут остаётся тонкой обвязкой.
     const prep = await prepareChat(
       {
-        search: async (question) => flattenContext(await queries.searchContext(db, question)),
-        entry: (ref) => queries.findContextEntry(db, ref.kind, ref.slug),
+        search: async (question) =>
+          flattenContext(await queries.searchContext(db, question, { withMeasurements: owner })),
+        entry: (ref) =>
+          queries.findContextEntry(db, ref.kind, ref.slug, { withMeasurements: owner }),
         pool: poolOf(catalog),
       },
       { question: lastUser.content, ctx: validated.ctx, mode: validated.mode }

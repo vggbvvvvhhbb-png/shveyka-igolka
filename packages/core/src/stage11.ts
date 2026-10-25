@@ -20,3 +20,4 @@ export * from "./ai/answerCache";
 export * from "./ai/rateLimitStore";
 export * from "./diagrams/seamSvg";
 export * from "./onboarding/recommend";
+export * from "./auth/ownerKey";
