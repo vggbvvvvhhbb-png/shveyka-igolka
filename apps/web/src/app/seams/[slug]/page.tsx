@@ -5,6 +5,7 @@ import { howToJsonLd, readSteps } from "@shveyka/core";
 import { AskShveykaButton } from "@/components/AskShveykaButton";
 import { RelatedLinks } from "@/components/RelatedLinks";
 import { JsonLd } from "@/components/JsonLd";
+import { SeamDiagram } from "@/components/SeamDiagram";
 import { loadCatalog } from "@/lib/catalog";
 import { SITE_URL } from "@/lib/site";
 import type { SeamStep } from "@shveyka/core";
@@ -117,6 +118,9 @@ export default async function SeamDetailPage({ params }: { params: Promise<{ slu
 
       {/* Спросить помощника об этом шве */}
       <AskShveykaButton question={`Как выполнить шов «${seam.name}» на Brother LS-200s?`} />
+
+      {/* Схема шва: своя картинка, если она есть, иначе — нарисованная схема */}
+      <SeamDiagram id={seam.id} slug={seam.id} name={seam.name} diagramUrl={seam.diagram_url} />
 
       {/* When to use */}
       <section>
