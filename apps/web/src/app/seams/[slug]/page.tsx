@@ -2,6 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getDbSingleton, queries } from "@shveyka/db";
 import { AskShveykaButton } from "@/components/AskShveykaButton";
+import { RelatedLinks } from "@/components/RelatedLinks";
+import { loadCatalog } from "@/lib/catalog";
 import type { SeamStep } from "@shveyka/core";
 
 export const dynamic = "force-dynamic";
@@ -36,6 +38,9 @@ export default async function SeamDetailPage({ params }: { params: Promise<{ slu
   if (!seam) {
     notFound();
   }
+
+  const catalog = await loadCatalog();
+  const links = catalog.graph.seam(slug);
 
   const diff = difficultyInfo[seam.difficulty] ?? {
     dots: "○○○",
@@ -192,6 +197,10 @@ export default async function SeamDetailPage({ params }: { params: Promise<{ slu
           </ul>
         </section>
       )}
+
+      {/* Связи каталога: ткани, которым подходит шов, и проекты, где он нужен */}
+      <RelatedLinks title="Подходит для тканей" items={links.fabrics} />
+      <RelatedLinks title="Где применяется" items={links.projects} />
 
       {/* Back link */}
       <div className="pt-4">

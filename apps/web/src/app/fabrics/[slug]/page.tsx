@@ -2,6 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getDbSingleton, queries } from "@shveyka/db";
 import { AskShveykaButton } from "@/components/AskShveykaButton";
+import { RelatedLinks } from "@/components/RelatedLinks";
+import { loadCatalog } from "@/lib/catalog";
 
 export const dynamic = "force-dynamic";
 
@@ -40,6 +42,9 @@ export default async function FabricDetailPage({ params }: { params: Promise<{ s
     notFound();
   }
 
+  const catalog = await loadCatalog();
+  const links = catalog.graph.fabric(slug);
+
   const diff = difficultyInfo[fabric.difficulty_to_work_with] ?? {
     dots: "○○○",
     label: "Неизвестно",
@@ -54,9 +59,6 @@ export default async function FabricDetailPage({ params }: { params: Promise<{ s
     presser_foot?: string;
     notes?: string;
   };
-
-  const hasSeams =
-    Array.isArray(fabric.recommended_edge_finish) && fabric.recommended_edge_finish.length > 0;
 
   return (
     <div className="space-y-8 max-w-3xl mx-auto">
@@ -160,24 +162,9 @@ export default async function FabricDetailPage({ params }: { params: Promise<{ s
         </ul>
       </section>
 
-      {/* Recommended seams */}
-      {hasSeams && (
-        <section>
-          <h2 className="text-xl font-semibold text-stone-900 mb-3">Подходящие швы</h2>
-          <ul className="space-y-2">
-            {fabric.recommended_edge_finish.map((seamSlug) => (
-              <li key={seamSlug}>
-                <Link
-                  href={`/seams/${seamSlug}`}
-                  className="text-stone-800 hover:text-stone-600 underline underline-offset-2"
-                >
-                  {seamSlug.replace(/-/g, " ")}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
+      {/* Связи каталога: швы и проекты, где эта ткань уместна */}
+      <RelatedLinks title="Подходящие швы" items={links.seams} />
+      <RelatedLinks title="Проекты из этой ткани" items={links.projects} />
 
       {/* Back link */}
       <div className="pt-4">
