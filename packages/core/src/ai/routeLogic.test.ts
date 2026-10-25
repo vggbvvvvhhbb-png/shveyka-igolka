@@ -5,8 +5,6 @@ import {
   buildRequestBody,
   parseSSEChunk,
   parseSSEPiece,
-  checkRateLimit,
-  type RateStore,
 } from "./routeLogic";
 import { MAX_TOKENS } from "./constants";
 
@@ -117,27 +115,6 @@ describe("parseSSEChunk", () => {
   it("мусорная строка → null", () => {
     expect(parseSSEChunk("data: {не json", "openrouter")).toBeNull();
     expect(parseSSEChunk("event: foo", "openrouter")).toBeNull();
-  });
-});
-
-describe("checkRateLimit", () => {
-  it("20 запросов подряд → true; 21-й → false; после 60с → снова true", () => {
-    const store: RateStore = new Map();
-    const t0 = 1_000_000;
-    for (let i = 0; i < 20; i++) {
-      expect(checkRateLimit("1.2.3.4", store, t0 + i * 100)).toBe(true);
-    }
-    expect(checkRateLimit("1.2.3.4", store, t0 + 20 * 100)).toBe(false);
-    // Окно истекло — снова разрешено.
-    expect(checkRateLimit("1.2.3.4", store, t0 + 61_000)).toBe(true);
-  });
-
-  it("разные IP не влияют друг на друга", () => {
-    const store: RateStore = new Map();
-    const t0 = 500;
-    for (let i = 0; i < 20; i++) checkRateLimit("9.9.9.9", store, t0);
-    expect(checkRateLimit("9.9.9.9", store, t0)).toBe(false);
-    expect(checkRateLimit("8.8.8.8", store, t0)).toBe(true);
   });
 });
 

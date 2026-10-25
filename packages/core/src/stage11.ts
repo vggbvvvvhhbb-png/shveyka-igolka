@@ -16,3 +16,5 @@ export * from "./ai/modes";
 export * from "./ai/fallback";
 export * from "./ai/truncation";
 export * from "./ai/prepareChat";
+export * from "./ai/answerCache";
+export * from "./ai/rateLimitStore";

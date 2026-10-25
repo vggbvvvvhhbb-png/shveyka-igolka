@@ -135,25 +135,3 @@ export function parseSSEPiece(line: string, provider: ChatProvider | string): SS
 export function parseSSEChunk(line: string, provider: ChatProvider | string): string | null {
   return parseSSEPiece(line, provider).text;
 }
-
-export type RateEntry = { count: number; windowStart: number };
-export type RateStore = Map<string, RateEntry>;
-export const RATE_WINDOW_MS = 60_000;
-export const RATE_LIMIT = 20;
-
-/**
- * 20 запросов с одного IP за 60 секунд. Хранилище (Map) передаётся снаружи,
- * чтобы функция была тестируемой и не использовала глобальный стейт.
- */
-export function checkRateLimit(ip: string, store: RateStore, now: number = Date.now()): boolean {
-  const entry = store.get(ip);
-  if (!entry || now - entry.windowStart >= RATE_WINDOW_MS) {
-    store.set(ip, { count: 1, windowStart: now });
-    return true;
-  }
-  if (entry.count >= RATE_LIMIT) {
-    return false;
-  }
-  entry.count += 1;
-  return true;
-}
