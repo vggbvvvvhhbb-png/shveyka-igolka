@@ -1,6 +1,8 @@
 import { fabrics, getDbSingleton, projects, seams, withRetry } from "@shveyka/db";
 import {
   buildCatalogGraph,
+  computeCatalogVersion,
+  field,
   toFabricNode,
   toProjectNode,
   toSeamNode,
@@ -11,6 +13,8 @@ import {
 export interface Catalog {
   rows: { fabric: Row[]; seam: Row[]; project: Row[] };
   graph: CatalogGraph;
+  /** Максимальный updated_at по каталогу: lastModified в sitemap и ключ кэша ответов. */
+  version: string;
 }
 
 /** Каталог меняется только сидами — минутного кэша хватает, чтобы страницы не дёргали БД трижды. */
@@ -50,6 +54,11 @@ export async function loadCatalog(): Promise<Catalog> {
       seams: rows.seam.map(toSeamNode),
       projects: rows.project.map(toProjectNode),
     }),
+    version: computeCatalogVersion(
+      [...rows.fabric, ...rows.seam, ...rows.project].map(
+        (r) => field(r, "updated_at") as string | Date | null
+      )
+    ),
   };
 
   cached = { at: now, value };

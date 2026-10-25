@@ -6,3 +6,6 @@
 export * from "./catalog/normalize";
 export * from "./catalog/links";
 export * from "./catalog/syncPlan";
+export * from "./catalog/version";
+export * from "./seo/jsonld";
+export * from "./seo/sitemap";

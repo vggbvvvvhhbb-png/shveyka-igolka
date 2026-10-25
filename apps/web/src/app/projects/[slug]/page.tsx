@@ -2,6 +2,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getDbSingleton, queries } from "@shveyka/db";
 import { AskShveykaButton } from "@/components/AskShveykaButton";
+import { JsonLd } from "@/components/JsonLd";
+import { howToJsonLd, readSteps } from "@shveyka/core";
+import { SITE_URL } from "@/lib/site";
 import type { ProjectStep } from "@shveyka/core";
 
 export const dynamic = "force-dynamic";
@@ -47,6 +50,17 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
 
   return (
     <div className="space-y-8 max-w-3xl mx-auto">
+      {/* Разметка для поисковиков: проект — пошаговая инструкция со временем. */}
+      <JsonLd
+        data={howToJsonLd({
+          name: project.name,
+          description: materials.main_fabric,
+          url: `${SITE_URL}/projects/${encodeURIComponent(project.id)}`,
+          steps: readSteps(project.steps),
+          supplies: materials.notions,
+        })}
+      />
+
       {/* Breadcrumbs */}
       <nav className="text-sm text-stone-500">
         <Link href="/" className="hover:text-stone-800">
