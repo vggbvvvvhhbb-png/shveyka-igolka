@@ -4,8 +4,8 @@ import {
   isValidatedRequest,
   buildRequestBody,
   parseSSEChunk,
+  parseSSEPiece,
   checkRateLimit,
-  buildAllowedSlugsHeader,
   type RateStore,
 } from "./routeLogic";
 import { MAX_TOKENS } from "./constants";
@@ -52,15 +52,20 @@ describe("validateChatRequest", () => {
 describe("buildRequestBody (задача 2: лимит токенов)", () => {
   const messages = [{ role: "user" as const, content: "Привет" }];
 
-  it("max_tokens === 700 присутствует в теле OpenRouter", () => {
+  it("max_tokens по умолчанию — общий бюджет 1200", () => {
     const body = buildRequestBody(messages, "системный промпт", "openrouter", "kimi-k2.6");
     expect(body.max_tokens).toBe(MAX_TOKENS);
-    expect(MAX_TOKENS).toBe(700);
+    expect(MAX_TOKENS).toBe(1200);
+  });
+
+  it("бюджет режима перекрывает общий", () => {
+    const body = buildRequestBody(messages, "СП", "openrouter", "model", 1400);
+    expect(body.max_tokens).toBe(1400);
   });
 
   it("max_tokens присутствует и для Anthropic", () => {
     const body = buildRequestBody(messages, "системный промпт", "anthropic", "claude");
-    expect(body.max_tokens).toBe(700);
+    expect(body.max_tokens).toBe(1200);
     expect(body.system).toBe("системный промпт");
   });
 
@@ -136,20 +141,58 @@ describe("checkRateLimit", () => {
   });
 });
 
-describe("buildAllowedSlugsHeader", () => {
-  it("собирает тип/slug через запятую", () => {
-    const header = buildAllowedSlugsHeader({
-      fabrics: [{ slug: "denim" }],
-      seams: [{ slug: "hem-double-fold" }],
-      projects: [{ slug: "pillowcase-simple" }],
-    });
-    expect(header).toBe("fabrics/denim,seams/hem-double-fold,projects/pillowcase-simple");
+describe("parseSSEPiece", () => {
+  it("причина завершения OpenRouter", () => {
+    const piece = parseSSEPiece('data: {"choices":[{"finish_reason":"length"}]}', "openrouter");
+    expect(piece.finishReason).toBe("length");
+    expect(piece.text).toBeNull();
   });
 
-  it("обрезает до 2000 символов", () => {
-    const many = Array.from({ length: 300 }, (_, i) => ({ slug: `fabric-${i}` }));
-    const header = buildAllowedSlugsHeader({ fabrics: many, seams: [], projects: [] }, 2000);
-    expect(header.length).toBeLessThanOrEqual(2000);
-    expect(header.split(",").length).toBeGreaterThan(100);
+  it("причина завершения Anthropic", () => {
+    const piece = parseSSEPiece(
+      'data: {"type":"message_delta","delta":{"stop_reason":"max_tokens"}}',
+      "anthropic"
+    );
+    expect(piece.finishReason).toBe("max_tokens");
+  });
+
+  it("текст дельты без причины завершения", () => {
+    const piece = parseSSEPiece('data: {"choices":[{"delta":{"content":"Джинса"}}]}', "openrouter");
+    expect(piece.text).toBe("Джинса");
+    expect(piece.finishReason).toBeNull();
+  });
+});
+
+describe("validateChatRequest: контекст страницы и режим", () => {
+  it("ctx и mode доходят до маршрута", () => {
+    const result = validateChatRequest({
+      messages: [{ role: "user", content: "Какая игла?" }],
+      ctx: "fabric/denim",
+      mode: "steps",
+    });
+    expect(isValidatedRequest(result)).toBe(true);
+    if (isValidatedRequest(result)) {
+      expect(result.ctx).toBe("fabric/denim");
+      expect(result.mode).toBe("steps");
+    }
+  });
+
+  it("без ctx и mode запрос остаётся рабочим", () => {
+    const result = validateChatRequest({
+      messages: [{ role: "user", content: "Какая игла?" }],
+    });
+    expect(isValidatedRequest(result)).toBe(true);
+    if (isValidatedRequest(result)) {
+      expect(result.ctx).toBeUndefined();
+      expect(result.mode).toBeUndefined();
+    }
+  });
+
+  it("слишком длинный ctx → ошибка", () => {
+    const result = validateChatRequest({
+      messages: [{ role: "user", content: "Какая игла?" }],
+      ctx: "a".repeat(200),
+    });
+    expect(isValidatedRequest(result)).toBe(false);
   });
 });

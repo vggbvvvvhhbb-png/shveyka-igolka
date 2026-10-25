@@ -15,7 +15,9 @@ export type ProjectWithResolvedRefs = Project & {
  * Get a single project by its slug id.
  */
 export async function getProjectById(db: DatabaseClient, id: string): Promise<Project | undefined> {
-  const rows = await db.select().from(projects).where(eq(projects.id, id)).limit(1);
+  const rows = await withRetry(() =>
+    db.select().from(projects).where(eq(projects.id, id)).limit(1)
+  );
   return rows[0];
 }
 

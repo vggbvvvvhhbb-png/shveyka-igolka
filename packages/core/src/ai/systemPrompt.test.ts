@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { buildSystemPrompt } from "./systemPrompt";
+import { SOFT_REFUSAL_RULE } from "./fallback";
 import type { AssistantContext } from "./contextSchema";
 
 /**
@@ -11,7 +12,7 @@ const INSTRUCTIONS_BEFORE_MEASUREMENTS = `Ты — консультант по �
 
 Правила:
 1. Отвечай только по данным из блока «Доступные данные». Не используй знания из других источников для параметров машины и свойств тканей.
-2. Если нужных данных в блоке нет, напиши «В каталоге Швейки этого нет» и предложи ближайший вариант из блока.
+2. ${SOFT_REFUSAL_RULE}
 3. Не придумывай настройки машины (игла, стежок, натяжение) для тканей, которых нет в блоке.
 4. Ссылайся на записи в формате markdown: [название](/fabrics/slug), [название](/seams/slug), [название](/projects/slug).
 5. Отвечай по-русски. Обычно 3–8 предложений. Для пошаговых инструкций используй нумерованный список.
@@ -81,5 +82,41 @@ describe("buildSystemPrompt", () => {
     const prompt = buildSystemPrompt({ ...EMPTY_CONTEXT, measurements: {} });
 
     expect(prompt).toBe(buildSystemPrompt(EMPTY_CONTEXT));
+  });
+
+  it("настройки машины дублируются словами", () => {
+    const context: AssistantContext = {
+      fabrics: [
+        {
+          slug: "denim",
+          name: "Джинса",
+          aliases: ["джинса"],
+          category: "natural",
+          weight_class: "heavy",
+          stretch: "none",
+          suitable_for: [],
+          default_machine_settings: {
+            needle_size: "80/12",
+            stitch_type: "straight",
+            stitch_length_mm: [2, 2.5],
+          },
+          care_instructions: "",
+          common_issues: [],
+        },
+      ],
+      seams: [],
+      projects: [],
+    };
+
+    const prompt = buildSystemPrompt(context);
+
+    expect(prompt).toContain("## Настройки машины словами");
+    expect(prompt).toContain(
+      "Джинса: Игла 80/12 (метрический №80, американский №12), прямой стежок, длина стежка 2–2,5 мм."
+    );
+  });
+
+  it("жёсткий отказ больше не упоминается", () => {
+    expect(buildSystemPrompt(EMPTY_CONTEXT)).not.toContain("В каталоге Швейки этого нет");
   });
 });

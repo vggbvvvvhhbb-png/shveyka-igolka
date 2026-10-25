@@ -37,7 +37,13 @@ describe("buildSystemPrompt", () => {
 
   it("instructs the model to answer only from context", () => {
     const prompt = buildSystemPrompt(emptyContext);
-    expect(prompt).toContain("В каталоге Швейки этого нет");
+    expect(prompt).toContain("Отвечай только по данным из блока «Доступные данные»");
+  });
+
+  it("отказ мягкий: предлагает уточнить, а не просто отказывает", () => {
+    const prompt = buildSystemPrompt(emptyContext);
+    expect(prompt).toContain("уточняющий вопрос");
+    expect(prompt).not.toContain("В каталоге Швейки этого нет");
   });
 });
 

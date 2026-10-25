@@ -1,21 +1,27 @@
 import {
-  buildSystemPrompt,
-  buildAllowedSlugsHeader,
+  buildContextSlugsHeader,
   buildRequestBody,
+  buildSystemPrompt,
   checkRateLimit,
   createRequestId,
+  flattenContext,
+  groupContext,
   isValidatedRequest,
-  parseSSEChunk,
+  looksTruncated,
+  parseSSEPiece,
+  prepareChat,
   resolveProviderName,
   resolveProviderUrl,
   validateChatRequest,
   DEFAULT_RELAY_MODEL,
+  CONTINUE_NOTE,
   type ChatMessage,
   type ChatProvider,
   type RateStore,
 } from "@shveyka/core";
 import { getDbSingleton, queries } from "@shveyka/db";
 import { errorResponse, logFailure } from "@/lib/apiResponse";
+import { loadCatalog, poolOf } from "@/lib/catalog";
 
 export const dynamic = "force-dynamic";
 
@@ -52,7 +58,8 @@ async function streamFromProvider(
   provider: ChatProvider,
   apiKey: string,
   systemPrompt: string,
-  messages: ChatMessage[]
+  messages: ChatMessage[],
+  maxTokens: number
 ): Promise<Response> {
   const model = getModel(provider);
   if (!model) {
@@ -79,21 +86,27 @@ async function streamFromProvider(
   return fetch(resolveProviderUrl(provider, process.env.RELAY_BASE_URL), {
     method: "POST",
     headers,
-    body: JSON.stringify(buildRequestBody(messages, systemPrompt, provider, model)),
+    body: JSON.stringify(buildRequestBody(messages, systemPrompt, provider, model, maxTokens)),
   });
 }
 
 /**
- * Превращает SSE-поток провайдера в текстовый стрим для клиента.
- * Разбор строк — в parseSSEChunk (@shveyka/core), оттестирован без сети.
+ * Превращает SSE-поток провайдера в текстовый поток для клиента.
+ *
+ * Разбор строк — в parseSSEPiece (@shveyka/core), оттестирован без сети.
+ * `onDone` вызывается в конце потока и возвращает текст, который нужно
+ * дописать (например, пометку об обрыве ответа).
  */
 function toTextStream(
   upstream: ReadableStream<Uint8Array>,
-  provider: ChatProvider
+  provider: ChatProvider,
+  onDone: (full: string, finishReason: string | null) => string
 ): ReadableStream<Uint8Array> {
   const decoder = new TextDecoder();
   const encoder = new TextEncoder();
   let buffer = "";
+  let full = "";
+  let finishReason: string | null = null;
 
   return new ReadableStream<Uint8Array>({
     async start(controller) {
@@ -108,12 +121,17 @@ function toTextStream(
           while ((idx = buffer.indexOf("\n")) !== -1) {
             const line = buffer.slice(0, idx);
             buffer = buffer.slice(idx + 1);
-            const text = parseSSEChunk(line, provider);
-            if (text !== null) {
-              controller.enqueue(encoder.encode(text));
+            const piece = parseSSEPiece(line, provider);
+            if (piece.finishReason) finishReason = piece.finishReason;
+            if (piece.text !== null) {
+              full += piece.text;
+              controller.enqueue(encoder.encode(piece.text));
             }
           }
         }
+
+        const tail = onDone(full, finishReason);
+        if (tail) controller.enqueue(encoder.encode(tail));
         controller.close();
       } catch {
         controller.error(new Error(GENERIC_ERROR));
@@ -158,10 +176,29 @@ export async function POST(req: Request): Promise<Response> {
 
   try {
     const db = getDbSingleton();
-    const context = await queries.searchContext(db, lastUser.content);
-    const systemPrompt = buildSystemPrompt(context);
+    const catalog = await loadCatalog();
 
-    const upstream = await streamFromProvider(provider, apiKey, systemPrompt, messages);
+    // Контекст страницы, поиск по вопросу, режим ответа и мягкий отказ
+    // собираются в одной функции — маршрут остаётся тонкой обвязкой.
+    const prep = await prepareChat(
+      {
+        search: async (question) => flattenContext(await queries.searchContext(db, question)),
+        entry: (ref) => queries.findContextEntry(db, ref.kind, ref.slug),
+        pool: poolOf(catalog),
+      },
+      { question: lastUser.content, ctx: validated.ctx, mode: validated.mode }
+    );
+
+    const context = groupContext(prep.context);
+    const systemPrompt = `${buildSystemPrompt(context)}\n\n${prep.rules}`;
+
+    const upstream = await streamFromProvider(
+      provider,
+      apiKey,
+      systemPrompt,
+      messages,
+      prep.maxTokens
+    );
 
     if (!upstream.ok || !upstream.body) {
       // Тело ответа провайдера помогает понять причину (402 — нет кредитов,
@@ -175,16 +212,21 @@ export async function POST(req: Request): Promise<Response> {
     }
 
     // Список slug из контекста — UI сделает кликабельными только ссылки на них.
-    const allowedSlugs = buildAllowedSlugsHeader(context);
+    const allowedSlugs = buildContextSlugsHeader(prep.context);
 
-    return new Response(toTextStream(upstream.body, provider), {
-      headers: {
-        "Content-Type": "text/plain; charset=utf-8",
-        "Cache-Control": "no-store",
-        "X-Context-Slugs": allowedSlugs,
-        "X-Request-Id": requestId,
-      },
-    });
+    return new Response(
+      toTextStream(upstream.body, provider, (full, finishReason) =>
+        looksTruncated(full, finishReason) ? CONTINUE_NOTE : ""
+      ),
+      {
+        headers: {
+          "Content-Type": "text/plain; charset=utf-8",
+          "Cache-Control": "no-store",
+          "X-Context-Slugs": allowedSlugs,
+          "X-Request-Id": requestId,
+        },
+      }
+    );
   } catch (err) {
     logFailure("chat", requestId, err);
     return errorResponse(GENERIC_ERROR, 500, requestId);

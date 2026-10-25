@@ -54,4 +54,7 @@ export const AssistantContextSchema = z.object({
   measurements: BodyMeasurementsSchema.optional(),
 });
 
+export type FabricContext = z.infer<typeof FabricContextSchema>;
+export type SeamContext = z.infer<typeof SeamContextSchema>;
+export type ProjectContext = z.infer<typeof ProjectContextSchema>;
 export type AssistantContext = z.infer<typeof AssistantContextSchema>;

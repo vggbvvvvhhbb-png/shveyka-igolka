@@ -2,12 +2,20 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
-import { parseLinkSegments } from "@shveyka/core";
+import { parseLinkSegments, type AnswerMode } from "@shveyka/core";
 
 type Message = { role: "user" | "assistant"; content: string };
 
 const MAX_MESSAGES = 10;
 const MAX_INPUT = 1000;
+
+/** Режимы ответа: «Обычно» — без режима, остальные меняют форму ответа. */
+const MODES: { value: AnswerMode | null; label: string }[] = [
+  { value: null, label: "Обычно" },
+  { value: "short", label: "Коротко" },
+  { value: "steps", label: "По шагам" },
+  { value: "why", label: "Почему" },
+];
 
 /**
  * Превращает ссылки вида [название](/fabrics/slug) в next/link.
@@ -36,14 +44,18 @@ function renderContent(text: string, allowedSlugs: Set<string>): ReactNode[] {
  *
  * initialMessage — готовый вопрос с другого экрана (например, из
  * калькулятора): он отправляется сам, без лишнего нажатия.
+ *
+ * ctx — страница каталога, с которой пришёл вопрос (`fabric/<slug>`).
+ * Запись этой страницы попадает в контекст ответа первой.
  */
-export function ChatWidget({ initialMessage }: { initialMessage?: string }) {
+export function ChatWidget({ initialMessage, ctx }: { initialMessage?: string; ctx?: string }) {
   const [messages, setMessages] = useState<Message[]>([]);
   // Разрешённые slug последнего ответа ассистента ("тип/slug").
   const [allowedSlugsByIndex, setAllowedSlugsByIndex] = useState<Record<number, Set<string>>>({});
   const [input, setInput] = useState(initialMessage?.slice(0, MAX_INPUT) ?? "");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [mode, setMode] = useState<AnswerMode | null>(null);
 
   const sendMessage = useCallback(
     async (raw: string) => {
@@ -61,7 +73,11 @@ export function ChatWidget({ initialMessage }: { initialMessage?: string }) {
         const res = await fetch("/api/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ messages: history }),
+          body: JSON.stringify({
+            messages: history,
+            ...(ctx ? { ctx } : {}),
+            ...(mode ? { mode } : {}),
+          }),
         });
 
         if (!res.ok || !res.body) {
@@ -101,7 +117,7 @@ export function ChatWidget({ initialMessage }: { initialMessage?: string }) {
         setLoading(false);
       }
     },
-    [messages, loading]
+    [messages, loading, ctx, mode]
   );
 
   async function send(e: FormEvent<HTMLFormElement>) {
@@ -154,6 +170,26 @@ export function ChatWidget({ initialMessage }: { initialMessage?: string }) {
       )}
 
       <form onSubmit={send} className="space-y-2">
+        {/* Режим ответа меняет форму ответа: коротко, по шагам или с объяснением. */}
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-sm text-stone-500">Ответ</span>
+          {MODES.map((m) => (
+            <button
+              key={m.label}
+              type="button"
+              onClick={() => setMode(m.value)}
+              className={[
+                "rounded-full px-3 py-1 text-sm transition-colors",
+                mode === m.value
+                  ? "bg-stone-800 text-white"
+                  : "bg-stone-100 text-stone-700 hover:bg-stone-200",
+              ].join(" ")}
+            >
+              {m.label}
+            </button>
+          ))}
+        </div>
+
         <textarea
           value={input}
           onChange={(e) => onInputChange(e.target.value)}

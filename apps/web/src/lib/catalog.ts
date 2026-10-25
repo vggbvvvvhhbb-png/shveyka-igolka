@@ -3,10 +3,13 @@ import {
   buildCatalogGraph,
   computeCatalogVersion,
   field,
+  str,
+  strList,
   toFabricNode,
   toProjectNode,
   toSeamNode,
   type CatalogGraph,
+  type PoolEntry,
   type Row,
 } from "@shveyka/core";
 
@@ -63,4 +66,29 @@ export async function loadCatalog(): Promise<Catalog> {
 
   cached = { at: now, value };
   return value;
+}
+
+/** Ссылка на запись может быть записана и как id, и как slug. */
+const slugOf = (r: Row): string => str(r, "slug") || str(r, "id");
+
+/**
+ * Весь каталог в плоском виде — для подсказок, когда точного ответа нет.
+ *
+ * Модель получает эти записи, когда в контексте не нашлось ничего: так она
+ * предлагает ближайшее, а не отказывает.
+ */
+export function poolOf(c: Catalog): PoolEntry[] {
+  const mk = (kind: PoolEntry["kind"], rows: Row[]): PoolEntry[] =>
+    rows.map((r) => ({
+      kind,
+      slug: slugOf(r),
+      name: str(r, "name"),
+      aliases: strList(r, "aliases"),
+    }));
+
+  return [
+    ...mk("fabric", c.rows.fabric),
+    ...mk("seam", c.rows.seam),
+    ...mk("project", c.rows.project),
+  ];
 }
