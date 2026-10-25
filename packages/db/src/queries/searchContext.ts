@@ -1,5 +1,12 @@
 import type { DatabaseClient } from "../client";
-import type { AssistantContext, BodyMeasurements } from "@shveyka/core";
+import type {
+  AssistantContext,
+  BodyMeasurements,
+  FabricContext,
+  ProjectContext,
+  SeamContext,
+} from "@shveyka/core";
+import type { ContextEntry, PageKind } from "@shveyka/core";
 import {
   AssistantContextSchema,
   buildSizeHint,
@@ -8,9 +15,9 @@ import {
   normalizeSearchText,
   rankByTier,
 } from "@shveyka/core";
-import { searchFabricsByKeywords } from "./fabrics";
-import { listSeams } from "./seams";
-import { listProjects } from "./projects";
+import { searchFabricsByKeywords, getFabricBySlug, type Fabric } from "./fabrics";
+import { listSeams, getSeamById, type Seam } from "./seams";
+import { listProjects, getProjectById, type Project } from "./projects";
 import { getMeasurements } from "./measurements";
 import { withRetry } from "../utils/withRetry";
 
@@ -51,6 +58,90 @@ const MAX_FABRICS = 4;
  */
 const FABRIC_CANDIDATES = 12;
 
+/** Читает мерки пользователя и приводит их к виду, удобному для контекста. */
+async function loadMeasurements(db: DatabaseClient): Promise<BodyMeasurements | undefined> {
+  const row = await withRetry(() => getMeasurements(db));
+  if (!row) return undefined;
+  const measurements: BodyMeasurements = {
+    bust: row.bust ?? undefined,
+    waist: row.waist ?? undefined,
+    hip: row.hip ?? undefined,
+    height: row.height ?? undefined,
+  };
+  return hasMeasurements(measurements) ? measurements : undefined;
+}
+
+// ============================================================================
+// ПРЕОБРАЗОВАНИЕ ЗАПИСЕЙ В КОНТЕКСТ
+// ============================================================================
+
+/** Запись ткани → блок контекста. */
+export function toFabricContext(fabric: Fabric): FabricContext {
+  return {
+    slug: fabric.id,
+    name: fabric.name,
+    aliases: fabric.aliases as string[],
+    category: fabric.category,
+    weight_class: fabric.weight_class,
+    stretch: fabric.stretch,
+    suitable_for: fabric.suitable_for as string[],
+    default_machine_settings: fabric.default_machine_settings as Record<string, unknown>,
+    care_instructions: fabric.care_instructions,
+    common_issues: fabric.common_issues as string[],
+  };
+}
+
+/** Запись шва → блок контекста. */
+export function toSeamContext(seam: Seam): SeamContext {
+  return {
+    slug: seam.id,
+    name: seam.name,
+    aliases: seam.aliases as string[],
+    type: seam.type,
+    difficulty: seam.difficulty,
+    suitable_weight_classes: seam.suitable_weight_classes as string[],
+    when_to_use: seam.when_to_use,
+    default_machine_settings: seam.default_machine_settings as Record<string, unknown>,
+    steps: (seam.steps as Array<{ order: number; instruction: string; tip?: string }>).map(
+      (st) => ({
+        order: st.order,
+        instruction: st.instruction,
+        ...(st.tip ? { tip: st.tip } : {}),
+      })
+    ),
+    common_mistakes: seam.common_mistakes as string[],
+  };
+}
+
+/**
+ * Запись проекта → блок контекста.
+ *
+ * Подсказка по размеру появляется, только если мерки есть и для этого
+ * типа изделия есть правило вывода размера.
+ */
+export function toProjectContext(
+  project: Project,
+  measurements?: BodyMeasurements
+): ProjectContext {
+  const sizeHint = measurements ? buildSizeHint(project.garment_type, measurements) : null;
+  return {
+    slug: project.id,
+    name: project.name,
+    category: project.category,
+    garment_type: project.garment_type,
+    difficulty: project.difficulty,
+    estimated_time_hours: project.estimated_time_hours as [number, number],
+    fabric_amount_formula: project.fabric_amount_formula,
+    required_seams: project.required_seams as string[],
+    final_checklist: project.final_checklist as string[],
+    ...(sizeHint ? { size_hint: sizeHint } : {}),
+  };
+}
+
+// ============================================================================
+// ПОИСК КОНТЕКСТА
+// ============================================================================
+
 /**
  * Извлекает значимые слова запроса: нижний регистр, без коротких и стоп-слов.
  *
@@ -82,22 +173,14 @@ function matchesAny(text: string, keywords: string[]): boolean {
   return keywords.some((keyword) => matchesSearchTerm(text, keyword));
 }
 
-/**
- * Читает мерки пользователя и приводит их к виду, удобному для контекста.
- * Если мерок нет или все поля пустые, возвращается undefined — тогда блок
- * «Мерки» в промпте не появляется вовсе.
- */
-async function loadMeasurements(db: DatabaseClient): Promise<BodyMeasurements | undefined> {
-  const row = await withRetry(() => getMeasurements(db));
-  if (!row) return undefined;
-
-  const measurements: BodyMeasurements = {
-    bust: row.bust ?? undefined,
-    waist: row.waist ?? undefined,
-    hip: row.hip ?? undefined,
-    height: row.height ?? undefined,
-  };
-  return hasMeasurements(measurements) ? measurements : undefined;
+/** Опции поиска контекста. */
+export interface SearchOptions {
+  /**
+   * Добавлять ли мерки пользователя.
+   *
+   * Мерки — личные данные, поэтому их видит только владелец сайта (см. 08).
+   */
+  withMeasurements?: boolean;
 }
 
 /**
@@ -105,9 +188,13 @@ async function loadMeasurements(db: DatabaseClient): Promise<BodyMeasurements | 
  * Ткани — через searchFabricsByKeywords по ключевым словам.
  * Швы и проекты — фильтрация в JS по name и aliases/steps (объёмы каталога малы).
  */
-export async function searchContext(db: DatabaseClient, query: string): Promise<AssistantContext> {
+export async function searchContext(
+  db: DatabaseClient,
+  query: string,
+  options: SearchOptions = {}
+): Promise<AssistantContext> {
   const keywords = extractKeywords(query);
-  const measurements = await loadMeasurements(db);
+  const measurements = options.withMeasurements === false ? undefined : await loadMeasurements(db);
 
   if (keywords.length === 0) {
     return { fabrics: [], seams: [], projects: [] };
@@ -143,53 +230,46 @@ export async function searchContext(db: DatabaseClient, query: string): Promise<
     .slice(0, MAX_PER_KIND);
 
   const context = {
-    fabrics: fabricRows.map((f) => ({
-      slug: f.id,
-      name: f.name,
-      aliases: f.aliases as string[],
-      category: f.category,
-      weight_class: f.weight_class,
-      stretch: f.stretch,
-      suitable_for: f.suitable_for as string[],
-      default_machine_settings: f.default_machine_settings as Record<string, unknown>,
-      care_instructions: f.care_instructions,
-      common_issues: f.common_issues as string[],
-    })),
-    seams: seamRows.map((s) => ({
-      slug: s.id,
-      name: s.name,
-      aliases: s.aliases as string[],
-      type: s.type,
-      difficulty: s.difficulty,
-      suitable_weight_classes: s.suitable_weight_classes as string[],
-      when_to_use: s.when_to_use,
-      default_machine_settings: s.default_machine_settings as Record<string, unknown>,
-      steps: (s.steps as Array<{ order: number; instruction: string; tip?: string }>).map((st) => ({
-        order: st.order,
-        instruction: st.instruction,
-        ...(st.tip ? { tip: st.tip } : {}),
-      })),
-      common_mistakes: s.common_mistakes as string[],
-    })),
-    projects: projectRows.map((p) => {
-      // Подсказка по размеру появляется, только если мерки есть и для этого
-      // типа изделия есть правило вывода размера.
-      const sizeHint = measurements ? buildSizeHint(p.garment_type, measurements) : null;
-      return {
-        slug: p.id,
-        name: p.name,
-        category: p.category,
-        garment_type: p.garment_type,
-        difficulty: p.difficulty,
-        estimated_time_hours: p.estimated_time_hours as [number, number],
-        fabric_amount_formula: p.fabric_amount_formula,
-        required_seams: p.required_seams as string[],
-        final_checklist: p.final_checklist as string[],
-        ...(sizeHint ? { size_hint: sizeHint } : {}),
-      };
-    }),
+    fabrics: fabricRows.map(toFabricContext),
+    seams: seamRows.map(toSeamContext),
+    projects: projectRows.map((p) => toProjectContext(p, measurements)),
     ...(measurements ? { measurements } : {}),
   };
 
   return AssistantContextSchema.parse(context);
+}
+
+/**
+ * Запись каталога по ссылке страницы.
+ *
+ * Нужна для контекста страницы: запись, на которой задан вопрос, должна
+ * попасть в ответ, даже если поиск по вопросу её не нашёл. Такой страницы
+ * может не быть — тогда возвращается null.
+ */
+export async function findContextEntry(
+  db: DatabaseClient,
+  kind: PageKind,
+  slug: string,
+  options: SearchOptions = {}
+): Promise<ContextEntry | null> {
+  const measurements = options.withMeasurements === false ? undefined : await loadMeasurements(db);
+
+  if (kind === "fabric") {
+    const row = await withRetry(() => getFabricBySlug(db, slug));
+    if (!row) return null;
+    const data = toFabricContext(row);
+    return { kind: "fabric", slug: data.slug, name: data.name, data };
+  }
+
+  if (kind === "seam") {
+    const row = await withRetry(() => getSeamById(db, slug));
+    if (!row) return null;
+    const data = toSeamContext(row);
+    return { kind: "seam", slug: data.slug, name: data.name, data };
+  }
+
+  const row = await withRetry(() => getProjectById(db, slug));
+  if (!row) return null;
+  const data = toProjectContext(row, measurements);
+  return { kind: "project", slug: data.slug, name: data.name, data };
 }

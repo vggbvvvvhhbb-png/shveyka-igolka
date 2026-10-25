@@ -1,34 +1,45 @@
 import {
-  buildSystemPrompt,
-  buildAllowedSlugsHeader,
+  buildContextSlugsHeader,
   buildRequestBody,
-  checkRateLimit,
+  buildSystemPrompt,
+  cacheKey,
   createRequestId,
+  flattenContext,
+  groupContext,
+  hasMeasurements,
+  isCacheable,
   isValidatedRequest,
-  parseSSEChunk,
+  looksTruncated,
+  parseSSEPiece,
+  prepareChat,
   resolveProviderName,
   resolveProviderUrl,
+  textToStream,
+  TtlLruCache,
   validateChatRequest,
   DEFAULT_RELAY_MODEL,
+  CONTINUE_NOTE,
   type ChatMessage,
   type ChatProvider,
-  type RateStore,
 } from "@shveyka/core";
 import { getDbSingleton, queries } from "@shveyka/db";
 import { errorResponse, logFailure } from "@/lib/apiResponse";
+import { clientIp, limitRequest } from "@/lib/guard";
+import { requestIsOwner } from "@/lib/owner";
+import { loadCatalog, poolOf } from "@/lib/catalog";
 
 export const dynamic = "force-dynamic";
 
 const GENERIC_ERROR = "Не удалось получить ответ, попробуйте позже";
 
-// Лимит хранится в памяти процесса: 20 запросов за 60 секунд с одного IP.
-// На нескольких инстансах лимит слабее — для production нужен внешний rate limit.
-const rateStore: RateStore = new Map();
-
-function getClientIp(req: Request): string {
-  const forwarded = req.headers.get("x-forwarded-for");
-  return forwarded?.split(",")[0]?.trim() || "unknown";
-}
+/**
+ * Кэш ответов: 500 записей, сутки жизни.
+ *
+ * Живёт в globalThis — на сервере Next.js модуль пересоздаётся при горячей
+ * перезагрузке, а кэш должен переживать её.
+ */
+const g = globalThis as unknown as { __shveykaAnswers?: TtlLruCache<string> };
+const answers = (g.__shveykaAnswers ??= new TtlLruCache<string>());
 
 function resolveProvider(): ChatProvider {
   return resolveProviderName(process.env.AI_PROVIDER);
@@ -52,7 +63,8 @@ async function streamFromProvider(
   provider: ChatProvider,
   apiKey: string,
   systemPrompt: string,
-  messages: ChatMessage[]
+  messages: ChatMessage[],
+  maxTokens: number
 ): Promise<Response> {
   const model = getModel(provider);
   if (!model) {
@@ -79,21 +91,27 @@ async function streamFromProvider(
   return fetch(resolveProviderUrl(provider, process.env.RELAY_BASE_URL), {
     method: "POST",
     headers,
-    body: JSON.stringify(buildRequestBody(messages, systemPrompt, provider, model)),
+    body: JSON.stringify(buildRequestBody(messages, systemPrompt, provider, model, maxTokens)),
   });
 }
 
 /**
- * Превращает SSE-поток провайдера в текстовый стрим для клиента.
- * Разбор строк — в parseSSEChunk (@shveyka/core), оттестирован без сети.
+ * Превращает SSE-поток провайдера в текстовый поток для клиента.
+ *
+ * Разбор строк — в parseSSEPiece (@shveyka/core), оттестирован без сети.
+ * `onDone` вызывается в конце потока и возвращает текст, который нужно
+ * дописать (например, пометку об обрыве ответа).
  */
 function toTextStream(
   upstream: ReadableStream<Uint8Array>,
-  provider: ChatProvider
+  provider: ChatProvider,
+  onDone: (full: string, finishReason: string | null) => string
 ): ReadableStream<Uint8Array> {
   const decoder = new TextDecoder();
   const encoder = new TextEncoder();
   let buffer = "";
+  let full = "";
+  let finishReason: string | null = null;
 
   return new ReadableStream<Uint8Array>({
     async start(controller) {
@@ -108,12 +126,17 @@ function toTextStream(
           while ((idx = buffer.indexOf("\n")) !== -1) {
             const line = buffer.slice(0, idx);
             buffer = buffer.slice(idx + 1);
-            const text = parseSSEChunk(line, provider);
-            if (text !== null) {
-              controller.enqueue(encoder.encode(text));
+            const piece = parseSSEPiece(line, provider);
+            if (piece.finishReason) finishReason = piece.finishReason;
+            if (piece.text !== null) {
+              full += piece.text;
+              controller.enqueue(encoder.encode(piece.text));
             }
           }
         }
+
+        const tail = onDone(full, finishReason);
+        if (tail) controller.enqueue(encoder.encode(tail));
         controller.close();
       } catch {
         controller.error(new Error(GENERIC_ERROR));
@@ -127,9 +150,8 @@ export async function POST(req: Request): Promise<Response> {
   // можно найти конкретное обращение, не выдавая клиенту внутренних деталей.
   const requestId = createRequestId();
 
-  if (!checkRateLimit(getClientIp(req), rateStore)) {
-    return errorResponse("Слишком много запросов, подождите минуту", 429, requestId);
-  }
+  const limited = await limitRequest(req, { key: `chat:${clientIp(req)}`, requestId });
+  if (limited) return limited;
 
   let body: unknown;
   try {
@@ -158,10 +180,65 @@ export async function POST(req: Request): Promise<Response> {
 
   try {
     const db = getDbSingleton();
-    const context = await queries.searchContext(db, lastUser.content);
-    const systemPrompt = buildSystemPrompt(context);
+    const catalog = await loadCatalog();
 
-    const upstream = await streamFromProvider(provider, apiKey, systemPrompt, messages);
+    // Мерки — личные данные владельца. Чужому посетителю они не достаются,
+    // поэтому в ответ подставляются только по ключу владельца.
+    const owner = requestIsOwner(req);
+
+    // Контекст страницы, поиск по вопросу, режим ответа и мягкий отказ
+    // собираются в одной функции — маршрут остаётся тонкой обвязкой.
+    const prep = await prepareChat(
+      {
+        search: async (question) =>
+          flattenContext(await queries.searchContext(db, question, { withMeasurements: owner })),
+        entry: (ref) =>
+          queries.findContextEntry(db, ref.kind, ref.slug, { withMeasurements: owner }),
+        pool: poolOf(catalog),
+      },
+      { question: lastUser.content, ctx: validated.ctx, mode: validated.mode }
+    );
+
+    const context = groupContext(prep.context);
+    const systemPrompt = `${buildSystemPrompt(context)}\n\n${prep.rules}`;
+
+    // Список slug из контекста — UI сделает кликабельными только ссылки на них.
+    const allowedSlugs = buildContextSlugsHeader(prep.context);
+
+    const headers = {
+      "Content-Type": "text/plain; charset=utf-8",
+      "Cache-Control": "no-store",
+      "X-Context-Slugs": allowedSlugs,
+      "X-Request-Id": requestId,
+    };
+
+    // Кэшируем только ответы, которые зависят от каталога, а не от человека:
+    // без истории диалога и без мерок. Мерки попадают в ответ только владельцу.
+    const usesMeasurements = hasMeasurements(context.measurements);
+    const cacheable = isCacheable({ hasHistory: messages.length > 1, usesMeasurements });
+
+    const key = cacheKey({
+      question: lastUser.content,
+      slugs: prep.context.map((e) => e.slug),
+      mode: prep.mode,
+      catalogVersion: catalog.version,
+    });
+
+    if (cacheable) {
+      const hit = answers.get(key);
+      if (hit) {
+        console.info("[chat] ответ взят из кэша", { requestId });
+        return new Response(textToStream(hit), { headers });
+      }
+    }
+
+    const upstream = await streamFromProvider(
+      provider,
+      apiKey,
+      systemPrompt,
+      messages,
+      prep.maxTokens
+    );
 
     if (!upstream.ok || !upstream.body) {
       // Тело ответа провайдера помогает понять причину (402 — нет кредитов,
@@ -174,17 +251,18 @@ export async function POST(req: Request): Promise<Response> {
       return errorResponse(GENERIC_ERROR, 502, requestId);
     }
 
-    // Список slug из контекста — UI сделает кликабельными только ссылки на них.
-    const allowedSlugs = buildAllowedSlugsHeader(context);
+    return new Response(
+      toTextStream(upstream.body, provider, (full, finishReason) => {
+        const truncated = looksTruncated(full, finishReason);
 
-    return new Response(toTextStream(upstream.body, provider), {
-      headers: {
-        "Content-Type": "text/plain; charset=utf-8",
-        "Cache-Control": "no-store",
-        "X-Context-Slugs": allowedSlugs,
-        "X-Request-Id": requestId,
-      },
-    });
+        // Оборванный ответ не сохраняем: следующий посетитель получил бы
+        // обрывок вместо целого ответа.
+        if (cacheable && !truncated && full) answers.set(key, full);
+
+        return truncated ? CONTINUE_NOTE : "";
+      }),
+      { headers }
+    );
   } catch (err) {
     logFailure("chat", requestId, err);
     return errorResponse(GENERIC_ERROR, 500, requestId);

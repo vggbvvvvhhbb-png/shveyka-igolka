@@ -1,10 +1,17 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { ctxFromPath } from "@shveyka/core";
 
 /**
  * Кнопка «Спросить Швейку про это».
  *
  * Ведёт на страницу помощника с готовым вопросом в адресной строке.
  * Строку вопроса проверяет и обрезает экран помощника.
+ *
+ * В ссылку добавляется страница, с которой ушли: помощник отвечает прежде
+ * всего про неё.
  */
 export function AskShveykaButton({
   question,
@@ -13,7 +20,11 @@ export function AskShveykaButton({
   question: string;
   label?: string;
 }) {
-  const params = new URLSearchParams({ question });
+  const pathname = usePathname();
+  const ctx = ctxFromPath(pathname);
+
+  const params = new URLSearchParams({ q: question });
+  if (ctx) params.set("ctx", ctx);
 
   return (
     <Link

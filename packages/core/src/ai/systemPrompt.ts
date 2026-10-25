@@ -1,11 +1,13 @@
 import type { AssistantContext } from "./contextSchema";
 import { hasMeasurements } from "./measurements";
+import { humanizeMachineSettings } from "./humanize";
+import { SOFT_REFUSAL_RULE } from "./fallback";
 
 const INSTRUCTIONS = `Ты — консультант по шитью Швейка. Помогаешь с тканями, швами, проектами и настройками швейной машины Brother LS-200s.
 
 Правила:
 1. Отвечай только по данным из блока «Доступные данные». Не используй знания из других источников для параметров машины и свойств тканей.
-2. Если нужных данных в блоке нет, напиши «В каталоге Швейки этого нет» и предложи ближайший вариант из блока.
+2. ${SOFT_REFUSAL_RULE}
 3. Не придумывай настройки машины (игла, стежок, натяжение) для тканей, которых нет в блоке.
 4. Ссылайся на записи в формате markdown: [название](/fabrics/slug), [название](/seams/slug), [название](/projects/slug).
 5. Отвечай по-русски. Обычно 3–8 предложений. Для пошаговых инструкций используй нумерованный список.
@@ -20,6 +22,27 @@ const INSTRUCTIONS = `Ты — консультант по шитью Швейк
  * склонна считать, что речь про ширину полотна.
  */
 const MEASUREMENT_INSTRUCTIONS = `7. В блоке «Мерки» указаны размеры пользователя в сантиметрах. Учитывай их при подборе проекта и при расчёте расхода ткани. Формула проекта в fabric_amount_formula даёт длину отреза в сантиметрах, где width, length и sleeve_length — это размеры самого изделия, а не ширина ткани. Если размер из мерок вывести нельзя, скажи об этом прямо и возьми расход из materials.main_fabric. Если у проекта есть size_hint — это уже посчитанный размер, используй его.`;
+
+/**
+ * Настройки машины теми же словами, что и в каталоге.
+ *
+ * Рядом с сырым JSON: JSON остаётся источником истины, а фраза помогает
+ * модели не перепутать метрический и американский размер иглы.
+ */
+function humanizedSettings(context: AssistantContext): string[] {
+  const lines: string[] = [];
+
+  for (const f of context.fabrics) {
+    const text = humanizeMachineSettings(f.default_machine_settings);
+    if (text) lines.push(`${f.name}: ${text}`);
+  }
+  for (const s of context.seams) {
+    const text = humanizeMachineSettings(s.default_machine_settings);
+    if (text) lines.push(`${s.name}: ${text}`);
+  }
+
+  return lines;
+}
 
 export function buildSystemPrompt(context: AssistantContext): string {
   // Мерки тоже считаются данными: без них блок остался бы пустым, и модель
@@ -39,8 +62,12 @@ export function buildSystemPrompt(context: AssistantContext): string {
     ? `${INSTRUCTIONS}\n${MEASUREMENT_INSTRUCTIONS}`
     : INSTRUCTIONS;
 
+  const settings = humanizedSettings(context);
+  const settingsBlock =
+    settings.length > 0 ? `\n\n## Настройки машины словами\n${settings.join("\n")}` : "";
+
   return `${instructions}
 
 ## Доступные данные
-${dataBlock}`;
+${dataBlock}${settingsBlock}`;
 }

@@ -1,8 +1,14 @@
 import { ChatRequestSchema, type ChatMessage } from "./requestSchema";
-import { MAX_CONTEXT_SLUGS_LENGTH, MAX_TOKENS } from "./constants";
+import { MAX_TOKENS } from "./constants";
 import type { ChatProvider } from "./providers";
 
-export type ValidatedRequest = { messages: ChatMessage[] };
+export type ValidatedRequest = {
+  messages: ChatMessage[];
+  /** Страница каталога: `fabric/<slug>`. Значения проверяются при разборе. */
+  ctx?: string;
+  /** Режим ответа: `short`, `steps` или `why`. */
+  mode?: string;
+};
 export type ValidationError = { error: string; issues?: string[] };
 
 /**
@@ -12,7 +18,11 @@ export type ValidationError = { error: string; issues?: string[] };
 export function validateChatRequest(body: unknown): ValidatedRequest | ValidationError {
   const parsed = ChatRequestSchema.safeParse(body);
   if (parsed.success) {
-    return { messages: parsed.data.messages };
+    return {
+      messages: parsed.data.messages,
+      ...(parsed.data.ctx ? { ctx: parsed.data.ctx } : {}),
+      ...(parsed.data.mode ? { mode: parsed.data.mode } : {}),
+    };
   }
   const message = parsed.error.issues[0]?.message ?? "Некорректный запрос";
   return { error: message, issues: parsed.error.issues.map((i) => i.message) };
@@ -30,12 +40,13 @@ export function buildRequestBody(
   messages: ChatMessage[],
   systemPrompt: string,
   provider: ChatProvider,
-  model: string
+  model: string,
+  maxTokens: number = MAX_TOKENS
 ): Record<string, unknown> {
   if (provider === "anthropic") {
     return {
       model,
-      max_tokens: MAX_TOKENS,
+      max_tokens: maxTokens,
       stream: true,
       system: systemPrompt,
       messages,
@@ -44,7 +55,7 @@ export function buildRequestBody(
   return {
     model,
     stream: true,
-    max_tokens: MAX_TOKENS,
+    max_tokens: maxTokens,
     messages: [{ role: "system", content: systemPrompt }, ...messages],
   };
 }
@@ -65,82 +76,62 @@ export function buildRequestHeaders(provider: ChatProvider): Record<string, stri
 }
 
 /**
- * Разбор одной SSE-строки ответа провайдера.
- * Возвращает текст дельты или null (служебные/пустые/битые строки).
+ * Одна SSE-строка ответа провайдера: текст дельты и причина завершения.
+ *
+ * Причина завершения нужна, чтобы отличить «модель закончила» от
+ * «лимит токенов исчерпан» — во втором случае ответ дополняется просьбой
+ * написать «продолжи».
  */
-export function parseSSEChunk(line: string, provider: ChatProvider | string): string | null {
+export interface SSEPiece {
+  /** Текст дельты; null — если в строке текста нет. */
+  text: string | null;
+  /** Причина завершения; null — если провайдер её не сообщил. */
+  finishReason: string | null;
+}
+
+export function parseSSEPiece(line: string, provider: ChatProvider | string): SSEPiece {
   const trimmed = line.trim();
-  if (!trimmed.startsWith("data:")) return null;
+  if (!trimmed.startsWith("data:")) return { text: null, finishReason: null };
+
   const payload = trimmed.slice(5).trim();
-  if (payload === "" || payload === "[DONE]") return null;
+  if (payload === "" || payload === "[DONE]") return { text: null, finishReason: null };
 
   let json: unknown;
   try {
     json = JSON.parse(payload);
   } catch {
-    return null;
+    return { text: null, finishReason: null };
   }
 
   const obj = json as {
     type?: unknown;
-    delta?: { text?: unknown };
-    choices?: Array<{ delta?: { content?: unknown } }>;
+    delta?: { text?: unknown; stop_reason?: unknown };
+    choices?: Array<{ delta?: { content?: unknown }; finish_reason?: unknown }>;
   };
+
   if (provider === "anthropic") {
     if (obj?.type === "content_block_delta" && typeof obj?.delta?.text === "string") {
-      return obj.delta.text;
+      return { text: obj.delta.text, finishReason: null };
     }
-    return null;
+    if (obj?.type === "message_delta" && typeof obj?.delta?.stop_reason === "string") {
+      return { text: null, finishReason: obj.delta.stop_reason };
+    }
+    return { text: null, finishReason: null };
   }
-  const text = obj?.choices?.[0]?.delta?.content;
-  return typeof text === "string" && text.length > 0 ? text : null;
-}
 
-export type RateEntry = { count: number; windowStart: number };
-export type RateStore = Map<string, RateEntry>;
-
-export const RATE_WINDOW_MS = 60_000;
-export const RATE_LIMIT = 20;
-
-/**
- * 20 запросов с одного IP за 60 секунд. Хранилище (Map) передаётся снаружи,
- * чтобы функция была тестируемой и не использовала глобальный стейт.
- */
-export function checkRateLimit(ip: string, store: RateStore, now: number = Date.now()): boolean {
-  const entry = store.get(ip);
-  if (!entry || now - entry.windowStart >= RATE_WINDOW_MS) {
-    store.set(ip, { count: 1, windowStart: now });
-    return true;
-  }
-  if (entry.count >= RATE_LIMIT) {
-    return false;
-  }
-  entry.count += 1;
-  return true;
+  const choice = obj?.choices?.[0];
+  const text = choice?.delta?.content;
+  const finishReason = typeof choice?.finish_reason === "string" ? choice.finish_reason : null;
+  return {
+    text: typeof text === "string" && text.length > 0 ? text : null,
+    finishReason,
+  };
 }
 
 /**
- * Список разрешённых slug контекста в формате "тип/slug" для заголовка
- * X-Context-Slugs. Строка обрезается до maxLength символов.
+ * Разбор одной SSE-строки ответа провайдера.
+ * Возвращает текст дельты или null (служебные/пустые/битые строки).
  */
-export function buildAllowedSlugsHeader(
-  context: {
-    fabrics: { slug: string }[];
-    seams: { slug: string }[];
-    projects: { slug: string }[];
-  },
-  maxLength = MAX_CONTEXT_SLUGS_LENGTH
-): string {
-  const slugs = [
-    ...context.fabrics.map((f) => `fabrics/${f.slug}`),
-    ...context.seams.map((s) => `seams/${s.slug}`),
-    ...context.projects.map((p) => `projects/${p.slug}`),
-  ];
-  let result = "";
-  for (const slug of slugs) {
-    const next = result ? `${result},${slug}` : slug;
-    if (next.length > maxLength) break;
-    result = next;
-  }
-  return result;
+export function parseSSEChunk(line: string, provider: ChatProvider | string): string | null {
+  return parseSSEPiece(line, provider).text;
 }

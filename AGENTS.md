@@ -43,7 +43,8 @@ pnpm typecheck        # tsc --noEmit по каждому пакету
 pnpm db:generate      # drizzle-kit generate — новая SQL-миграция
 pnpm db:push          # drizzle-kit push — применить схему к БД из DATABASE_URL
 pnpm seed             # залить сиды (upsert)
-pnpm seed:fresh       # полная перезаливка сидов
+pnpm seed:fresh       # полная перезаливка сидов (удаляет то, чего больше нет в JSON)
+pnpm seed:dry         # показать, что удалит seed:fresh, ничего не меняя
 ```
 
 ## Правила

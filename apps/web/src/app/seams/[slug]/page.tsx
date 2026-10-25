@@ -1,7 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getDbSingleton, queries } from "@shveyka/db";
+import { howToJsonLd, readSteps } from "@shveyka/core";
 import { AskShveykaButton } from "@/components/AskShveykaButton";
+import { RelatedLinks } from "@/components/RelatedLinks";
+import { JsonLd } from "@/components/JsonLd";
+import { SeamDiagram } from "@/components/SeamDiagram";
+import { loadCatalog } from "@/lib/catalog";
+import { SITE_URL } from "@/lib/site";
 import type { SeamStep } from "@shveyka/core";
 
 export const dynamic = "force-dynamic";
@@ -37,6 +43,9 @@ export default async function SeamDetailPage({ params }: { params: Promise<{ slu
     notFound();
   }
 
+  const catalog = await loadCatalog();
+  const links = catalog.graph.seam(slug);
+
   const diff = difficultyInfo[seam.difficulty] ?? {
     dots: "○○○",
     label: "Неизвестно",
@@ -58,6 +67,16 @@ export default async function SeamDetailPage({ params }: { params: Promise<{ slu
 
   return (
     <div className="space-y-8 max-w-3xl mx-auto">
+      {/* Разметка для поисковиков: шов — это пошаговая инструкция. */}
+      <JsonLd
+        data={howToJsonLd({
+          name: seam.name,
+          description: seam.when_to_use,
+          url: `${SITE_URL}/seams/${encodeURIComponent(seam.id)}`,
+          steps: readSteps(seam.steps),
+        })}
+      />
+
       {/* Breadcrumbs */}
       <nav className="text-sm text-stone-500">
         <Link href="/" className="hover:text-stone-800">
@@ -99,6 +118,9 @@ export default async function SeamDetailPage({ params }: { params: Promise<{ slu
 
       {/* Спросить помощника об этом шве */}
       <AskShveykaButton question={`Как выполнить шов «${seam.name}» на Brother LS-200s?`} />
+
+      {/* Схема шва: своя картинка, если она есть, иначе — нарисованная схема */}
+      <SeamDiagram id={seam.id} slug={seam.id} name={seam.name} diagramUrl={seam.diagram_url} />
 
       {/* When to use */}
       <section>
@@ -192,6 +214,10 @@ export default async function SeamDetailPage({ params }: { params: Promise<{ slu
           </ul>
         </section>
       )}
+
+      {/* Связи каталога: ткани, которым подходит шов, и проекты, где он нужен */}
+      <RelatedLinks title="Подходит для тканей" items={links.fabrics} />
+      <RelatedLinks title="Где применяется" items={links.projects} />
 
       {/* Back link */}
       <div className="pt-4">

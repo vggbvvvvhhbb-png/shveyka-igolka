@@ -17,7 +17,7 @@ export async function listSeams(db: DatabaseClient): Promise<Seam[]> {
  * Get a single seam by its slug id.
  */
 export async function getSeamById(db: DatabaseClient, id: string): Promise<Seam | undefined> {
-  const rows = await db.select().from(seams).where(eq(seams.id, id)).limit(1);
+  const rows = await withRetry(() => db.select().from(seams).where(eq(seams.id, id)).limit(1));
   return rows[0];
 }
 

@@ -70,6 +70,14 @@ export default function HomePage() {
         <p className="text-lg text-stone-600 max-w-2xl mx-auto leading-relaxed">
           Справочник по тканям, швам и проектам — всё для шитья на домашней машине.
         </p>
+        <div>
+          <Link
+            href="/start"
+            className="inline-block rounded-lg bg-orange-700 px-5 py-2.5 font-medium text-white hover:bg-orange-800"
+          >
+            С чего начать
+          </Link>
+        </div>
       </section>
 
       {/* Cards */}

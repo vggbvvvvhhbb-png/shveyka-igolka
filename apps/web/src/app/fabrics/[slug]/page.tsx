@@ -1,7 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getDbSingleton, queries } from "@shveyka/db";
+import { fabricJsonLd } from "@shveyka/core";
 import { AskShveykaButton } from "@/components/AskShveykaButton";
+import { RelatedLinks } from "@/components/RelatedLinks";
+import { JsonLd } from "@/components/JsonLd";
+import { loadCatalog } from "@/lib/catalog";
+import { SITE_URL } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
 
@@ -40,6 +45,9 @@ export default async function FabricDetailPage({ params }: { params: Promise<{ s
     notFound();
   }
 
+  const catalog = await loadCatalog();
+  const links = catalog.graph.fabric(slug);
+
   const diff = difficultyInfo[fabric.difficulty_to_work_with] ?? {
     dots: "○○○",
     label: "Неизвестно",
@@ -55,11 +63,18 @@ export default async function FabricDetailPage({ params }: { params: Promise<{ s
     notes?: string;
   };
 
-  const hasSeams =
-    Array.isArray(fabric.recommended_edge_finish) && fabric.recommended_edge_finish.length > 0;
-
   return (
     <div className="space-y-8 max-w-3xl mx-auto">
+      {/* Разметка для поисковиков: ткань — справочный термин, а не товар. */}
+      <JsonLd
+        data={fabricJsonLd({
+          name: fabric.name,
+          description: `${fabric.composition}. ${fabric.care_instructions}`,
+          url: `${SITE_URL}/fabrics/${encodeURIComponent(fabric.id)}`,
+          aliases: fabric.aliases,
+        })}
+      />
+
       {/* Breadcrumbs */}
       <nav className="text-sm text-stone-500">
         <Link href="/" className="hover:text-stone-800">
@@ -160,24 +175,9 @@ export default async function FabricDetailPage({ params }: { params: Promise<{ s
         </ul>
       </section>
 
-      {/* Recommended seams */}
-      {hasSeams && (
-        <section>
-          <h2 className="text-xl font-semibold text-stone-900 mb-3">Подходящие швы</h2>
-          <ul className="space-y-2">
-            {fabric.recommended_edge_finish.map((seamSlug) => (
-              <li key={seamSlug}>
-                <Link
-                  href={`/seams/${seamSlug}`}
-                  className="text-stone-800 hover:text-stone-600 underline underline-offset-2"
-                >
-                  {seamSlug.replace(/-/g, " ")}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
+      {/* Связи каталога: швы и проекты, где эта ткань уместна */}
+      <RelatedLinks title="Подходящие швы" items={links.seams} />
+      <RelatedLinks title="Проекты из этой ткани" items={links.projects} />
 
       {/* Back link */}
       <div className="pt-4">

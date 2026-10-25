@@ -11,13 +11,16 @@ export const metadata = {
  * Параметр ?q= — это готовый вопрос с другого экрана (например, из
  * калькулятора): помощник отправляет его сам, маме остаётся только прочитать
  * ответ.
+ *
+ * Параметр ?ctx= — страница каталога, с которой пришёл вопрос
+ * (`fabric/<slug>`): её запись попадает в контекст ответа первой.
  */
 export default async function AssistantPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string }>;
+  searchParams: Promise<{ q?: string; ctx?: string }>;
 }) {
-  const { q } = await searchParams;
+  const { q, ctx } = await searchParams;
 
   return (
     <div className="space-y-6 max-w-3xl mx-auto">
@@ -28,7 +31,7 @@ export default async function AssistantPage({
         </p>
       </div>
 
-      <ChatWidget initialMessage={q} />
+      <ChatWidget initialMessage={q} ctx={ctx} />
     </div>
   );
 }

@@ -11,6 +11,7 @@
     "db:studio": "drizzle-kit studio",
     "seed": "tsx src/seed.ts",
     "seed:fresh": "tsx src/seed.ts --fresh",
+    "seed:dry": "tsx src/seed.ts --fresh --dry-run",
     "lint": "eslint src/",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
@@ -27,7 +28,6 @@
     "@types/pg": "^8.11.0",
     "dotenv": "^16.4.0",
     "drizzle-kit": "^0.27.0",
-    "pg-mem": "^3.0.14",
     "tsx": "^4.19.0",
     "typescript": "catalog:",
     "vitest": "catalog:"

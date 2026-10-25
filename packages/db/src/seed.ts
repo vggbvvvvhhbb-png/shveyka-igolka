@@ -6,6 +6,7 @@ import { z } from "zod";
 import { getDbSingleton, closeDbPool } from "./client";
 import { fabrics, seams, projects } from "./schema";
 import { FabricSchema, SeamSchema, ProjectSchema } from "@shveyka/core";
+import { parseSeedArgs, pruneCatalog } from "./seedSync";
 
 const DATA_DIR = resolve(import.meta.dirname, "../data");
 
@@ -42,6 +43,33 @@ async function seed() {
   const seamData = loadJson("seams.json", SeamSchema);
   const fabricData = loadJson("fabrics.json", FabricSchema);
   const projectData = loadJson("projects.json", ProjectSchema);
+
+  const args = parseSeedArgs(process.argv.slice(2));
+
+  // Перезаливка идёт до вставки: сначала убираем то, чего больше нет в
+  // сидах, иначе запись успеет обновиться и снова остаться в базе.
+  if (args.fresh) {
+    const reports = await pruneCatalog(
+      db,
+      [
+        { name: "seams", table: seams, id: seams.id, keep: seamData.map((x) => x.id) },
+        { name: "fabrics", table: fabrics, id: fabrics.id, keep: fabricData.map((x) => x.id) },
+        { name: "projects", table: projects, id: projects.id, keep: projectData.map((x) => x.id) },
+      ],
+      args.dryRun
+    );
+
+    for (const report of reports) {
+      const list = report.deleted.length > 0 ? `: ${report.deleted.join(", ")}` : "";
+      console.log(`🧹 ${report.name}: удалено ${report.deleted.length}${list}`);
+    }
+
+    if (args.dryRun) {
+      console.log("Режим --dry-run: база не изменена.");
+      await closeDbPool();
+      return;
+    }
+  }
 
   // Insert seams first (projects reference them loosely)
   for (const item of seamData) {
