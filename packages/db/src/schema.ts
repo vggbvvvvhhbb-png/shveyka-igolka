@@ -1,4 +1,13 @@
-import { pgTable, text, jsonb, timestamp, index, integer, boolean } from "drizzle-orm/pg-core";
+import {
+  pgTable,
+  text,
+  jsonb,
+  timestamp,
+  index,
+  uniqueIndex,
+  integer,
+  boolean,
+} from "drizzle-orm/pg-core";
 
 // ============================================================================
 // FABRICS
@@ -136,6 +145,10 @@ export const messages = pgTable(
       .references(() => conversations.id, { onDelete: "cascade" }),
     role: text("role").notNull(),
     content: text("content").notNull(),
+    // Записи каталога («тип/slug»), попавшие в контекст ответа ассистента.
+    // По ним в открытом заново диалоге ссылки на каталог снова становятся
+    // кликабельными — как в том ответе, который был только что получен.
+    context_slugs: jsonb("context_slugs").$type<string[]>().notNull().default([]),
     created_at: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
@@ -168,3 +181,51 @@ export const measurements = pgTable("measurements", {
     .$onUpdate(() => new Date())
     .notNull(),
 });
+
+// ============================================================================
+// MESSAGE FEEDBACK
+// ============================================================================
+
+/**
+ * Оценка ответа помощника: одна на сообщение (повторная оценка заменяет
+ * прежнюю). В context_slugs лежат записи каталога, попавшие в контекст ответа, —
+ * по ним видно, где поиск контекста недобирает.
+ */
+export const messageFeedback = pgTable(
+  "message_feedback",
+  {
+    id: text("id").primaryKey(),
+    message_id: text("message_id")
+      .notNull()
+      .references(() => messages.id, { onDelete: "cascade" }),
+    rating: text("rating").notNull(),
+    comment: text("comment"),
+    context_slugs: jsonb("context_slugs").$type<string[]>().notNull(),
+    created_at: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("message_feedback_message_id_uq").on(table.message_id),
+    index("message_feedback_rating_idx").on(table.rating),
+  ]
+);
+
+// ============================================================================
+// SEWN ITEMS
+// ============================================================================
+
+/** Журнал сшитых вещей: из него считаются итоги года и экономия. */
+export const sewnItems = pgTable(
+  "sewn_items",
+  {
+    id: text("id").primaryKey(),
+    name: text("name").notNull(),
+    fabric_slug: text("fabric_slug"),
+    // Рубли целым числом: копейки в домашнем учёте не нужны.
+    cost: integer("cost").notNull(),
+    market_price: integer("market_price"),
+    // Подарок не считается в экономии: его себестоимость — не выгода.
+    gift: boolean("gift").notNull().default(false),
+    sewn_at: timestamp("sewn_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [index("sewn_items_sewn_at_idx").on(table.sewn_at)]
+);

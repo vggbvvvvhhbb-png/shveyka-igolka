@@ -3,6 +3,7 @@ import {
   buildRequestBody,
   buildSystemPrompt,
   cacheKey,
+  collectContextSlugs,
   createRequestId,
   flattenContext,
   groupContext,
@@ -27,6 +28,7 @@ import { errorResponse, logFailure } from "@/lib/apiResponse";
 import { clientIp, limitRequest } from "@/lib/guard";
 import { requestIsOwner } from "@/lib/owner";
 import { loadCatalog, poolOf } from "@/lib/catalog";
+import { saveAssistantTurn, saveUserTurn } from "@/lib/chatHistory";
 
 export const dynamic = "force-dynamic";
 
@@ -100,12 +102,14 @@ async function streamFromProvider(
  *
  * Разбор строк — в parseSSEPiece (@shveyka/core), оттестирован без сети.
  * `onDone` вызывается в конце потока и возвращает текст, который нужно
- * дописать (например, пометку об обрыве ответа).
+ * дописать (например, пометку об обрыве ответа). Он же сохраняет ответ
+ * в истории — до закрытия потока, чтобы к моменту, когда клиент увидел
+ * конец ответа, сообщение уже лежало в базе и его можно было оценить.
  */
 function toTextStream(
   upstream: ReadableStream<Uint8Array>,
   provider: ChatProvider,
-  onDone: (full: string, finishReason: string | null) => string
+  onDone: (full: string, finishReason: string | null) => Promise<string>
 ): ReadableStream<Uint8Array> {
   const decoder = new TextDecoder();
   const encoder = new TextEncoder();
@@ -135,7 +139,7 @@ function toTextStream(
           }
         }
 
-        const tail = onDone(full, finishReason);
+        const tail = await onDone(full, finishReason);
         if (tail) controller.enqueue(encoder.encode(tail));
         controller.close();
       } catch {
@@ -204,6 +208,9 @@ export async function POST(req: Request): Promise<Response> {
 
     // Список slug из контекста — UI сделает кликабельными только ссылки на них.
     const allowedSlugs = buildContextSlugsHeader(prep.context);
+    // Тот же список сохраняется вместе с ответом: в открытом заново диалоге
+    // ссылки на каталог снова кликабельны.
+    const contextSlugs = collectContextSlugs(prep.context);
 
     const headers = {
       "Content-Type": "text/plain; charset=utf-8",
@@ -232,6 +239,15 @@ export async function POST(req: Request): Promise<Response> {
       }
     }
 
+    // История: вопрос сохраняется сразу, ответ — когда стрим дочитан.
+    const conversationId = await saveUserTurn(
+      db,
+      requestId,
+      req.headers.get("x-conversation-id"),
+      lastUser.content
+    );
+    const assistantMessageId = crypto.randomUUID();
+
     const upstream = await streamFromProvider(
       provider,
       apiKey,
@@ -252,16 +268,36 @@ export async function POST(req: Request): Promise<Response> {
     }
 
     return new Response(
-      toTextStream(upstream.body, provider, (full, finishReason) => {
+      toTextStream(upstream.body, provider, async (full, finishReason) => {
         const truncated = looksTruncated(full, finishReason);
 
-        // Оборванный ответ не сохраняем: следующий посетитель получил бы
+        // Оборванный ответ не сохраняем в кэш: следующий посетитель получил бы
         // обрывок вместо целого ответа.
         if (cacheable && !truncated && full) answers.set(key, full);
 
+        // Ответ уходит в историю до закрытия потока: когда клиент увидел конец
+        // ответа, сообщение уже лежит в базе и его можно оценить.
+        if (conversationId) {
+          await saveAssistantTurn(
+            db,
+            requestId,
+            conversationId,
+            assistantMessageId,
+            full,
+            contextSlugs
+          );
+        }
+
         return truncated ? CONTINUE_NOTE : "";
       }),
-      { headers }
+      {
+        headers: {
+          ...headers,
+          ...(conversationId
+            ? { "X-Conversation-Id": conversationId, "X-Message-Id": assistantMessageId }
+            : {}),
+        },
+      }
     );
   } catch (err) {
     logFailure("chat", requestId, err);

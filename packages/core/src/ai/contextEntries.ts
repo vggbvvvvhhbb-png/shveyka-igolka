@@ -67,6 +67,17 @@ export function groupContext(entries: readonly ContextEntry[]): AssistantContext
 }
 
 /**
+ * Записи контекста в формате «тип/slug» — по одной на запись.
+ *
+ * Тот же формат, что у заголовка X-Context-Slugs, но списком: он сохраняется
+ * вместе с сообщением в базе, чтобы в открытом заново диалоге ссылки на
+ * каталог снова стали кликабельными.
+ */
+export function collectContextSlugs(entries: readonly ContextEntry[]): string[] {
+  return entries.map((e) => `${ROUTE_SEGMENT[e.kind]}/${e.slug}`);
+}
+
+/**
  * Список разрешённых ссылок в формате «тип/slug» для заголовка
  * X-Context-Slugs: ровно те записи, что попали в контекст ответа.
  */
@@ -75,8 +86,7 @@ export function buildContextSlugsHeader(
   maxLength = MAX_CONTEXT_SLUGS_LENGTH
 ): string {
   let result = "";
-  for (const e of entries) {
-    const item = `${ROUTE_SEGMENT[e.kind]}/${e.slug}`;
+  for (const item of collectContextSlugs(entries)) {
     const next = result ? `${result},${item}` : item;
     if (next.length > maxLength) break;
     result = next;

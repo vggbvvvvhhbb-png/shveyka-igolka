@@ -5,6 +5,7 @@ import { AskShveykaButton } from "@/components/AskShveykaButton";
 import { JsonLd } from "@/components/JsonLd";
 import { howToJsonLd, readSteps } from "@shveyka/core";
 import { SITE_URL } from "@/lib/site";
+import { ProjectChecklist } from "@/components/ProjectChecklist";
 import type { ProjectStep } from "@shveyka/core";
 
 export const dynamic = "force-dynamic";
@@ -95,8 +96,16 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
         </div>
       </div>
 
-      {/* Спросить помощника об этом проекте */}
-      <AskShveykaButton question={`Как сшить проект «${project.name}» на Brother LS-200s?`} />
+      {/* Спросить помощника об этом проекте и подобрать ткань */}
+      <div className="flex flex-wrap items-center gap-3">
+        <AskShveykaButton question={`Как сшить проект «${project.name}» на Brother LS-200s?`} />
+        <Link
+          href={`/projects/${project.id}/match`}
+          className="inline-block text-stone-800 hover:text-stone-600 underline underline-offset-2"
+        >
+          Какая ткань подойдёт
+        </Link>
+      </div>
 
       {/* Materials and fabric amount */}
       <section className="rounded-2xl border border-stone-200 bg-stone-50 p-6 space-y-3">
@@ -191,16 +200,7 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
       </section>
 
       {/* Final checklist */}
-      {checklist.length > 0 && (
-        <section>
-          <h2 className="text-xl font-semibold text-stone-900 mb-3">Проверка готового изделия</h2>
-          <ul className="list-disc pl-5 space-y-2 text-stone-700 leading-relaxed">
-            {checklist.map((item) => (
-              <li key={item}>{item}</li>
-            ))}
-          </ul>
-        </section>
-      )}
+      {checklist.length > 0 && <ProjectChecklist slug={project.id} items={checklist} />}
 
       {/* Recommended fabrics */}
       {project.resolvedFabrics.length > 0 && (

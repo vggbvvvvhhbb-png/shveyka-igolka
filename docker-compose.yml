@@ -32,6 +32,9 @@ services:
     env_file:
       - .env
       - apps/bot/.env
+    environment:
+      # Адрес сайта изнутри сети: бот пишет в общий журнал шитья
+      WEB_API_URL: http://web:3000
     volumes:
       # История проектов и состояние диалогов переживают пересборку
       - bot-data:/app/apps/bot/data

@@ -1,4 +1,4 @@
-import { asc, eq, sql } from "drizzle-orm";
+import { asc, eq, inArray, sql } from "drizzle-orm";
 import type { DatabaseClient } from "../client";
 import { seams, fabrics } from "../schema";
 import type { SeamType } from "@shveyka/core";
@@ -11,6 +11,23 @@ export type Seam = typeof seams.$inferSelect;
  */
 export async function listSeams(db: DatabaseClient): Promise<Seam[]> {
   return withRetry(() => db.select().from(seams).orderBy(asc(seams.name)));
+}
+
+/**
+ * Названия швов по их slug.
+ *
+ * Нужны там, где список швов приходит ссылками: ткань хранит рекомендованные
+ * обработки среза как slug. Слаги, которых нет в каталоге, пропускаются.
+ */
+export async function getSeamNames(
+  db: DatabaseClient,
+  ids: string[]
+): Promise<Map<string, string>> {
+  if (ids.length === 0) return new Map();
+  const rows = await withRetry(() =>
+    db.select({ id: seams.id, name: seams.name }).from(seams).where(inArray(seams.id, ids))
+  );
+  return new Map(rows.map((row) => [row.id, row.name]));
 }
 
 /**

@@ -16,7 +16,8 @@
     "db:studio": "pnpm --filter @shveyka/db db:studio",
     "seed": "pnpm --filter @shveyka/db seed",
     "seed:fresh": "pnpm --filter @shveyka/db seed:fresh",
-    "prepare": "husky"
+    "prepare": "husky",
+    "feedback:report": "pnpm --filter @shveyka/db feedback:report"
   },
   "lint-staged": {
     "*.{ts,tsx,js,jsx,json,md}": [

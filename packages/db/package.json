@@ -14,7 +14,8 @@
     "seed:dry": "tsx src/seed.ts --fresh --dry-run",
     "lint": "eslint src/",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "feedback:report": "tsx src/scripts/feedbackReport.ts"
   },
   "dependencies": {
     "@shveyka/core": "workspace:*",

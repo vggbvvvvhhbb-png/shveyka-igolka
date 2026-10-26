@@ -23,8 +23,8 @@ export function middleware(req: NextRequest) {
 }
 
 export const config = {
-  // Личные маршруты. Журнал шитья в каталоге пока нет, но путь закрыт заранее:
-  // когда появится, он не откроется наружу по умолчанию.
+  // Личные маршруты: мерки и журнал шитья. История диалогов и оценки здесь
+  // не закрыты — они не содержат мерок (см. docs/solutions/08-owner-lock.md).
   matcher: [
     "/api/measurements/:path*",
     "/api/sewn/:path*",

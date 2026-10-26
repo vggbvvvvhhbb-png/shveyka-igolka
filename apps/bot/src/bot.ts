@@ -14,6 +14,7 @@ import { careWizard, sendCareQr } from "./flows/care";
 import { cutWizard } from "./flows/cut";
 import { handleHardwareCallback, hardwareWizard } from "./flows/hardware";
 import { profitWizard, showStats } from "./flows/profit";
+import { registerJournal } from "./journal";
 import { logger } from "./lib/logger";
 import { mainMenu } from "./lib/reply";
 import { initialSession, type MyContext, type SessionData } from "./session";
@@ -45,6 +46,8 @@ export const BOT_COMMANDS = [
   { command: "hardware", description: "Сколько фурнитуры" },
   { command: "care", description: "Уход за тканью" },
   { command: "stats", description: "Итоги месяца" },
+  { command: "sewn", description: "Записать сшитую вещь" },
+  { command: "year", description: "Итоги года" },
   { command: "help", description: "Список команд" },
   { command: "cancel", description: "Прервать расчёт" },
 ];
@@ -57,6 +60,8 @@ const HELP_TEXT = [
   "/hardware — сколько фурнитуры",
   "/care — уход за тканью",
   "/stats — итоги месяца",
+  "/sewn название; затраты; цена в магазине; ткань — записать сшитую вещь",
+  "/year — итоги года",
   "/cancel — прервать расчёт",
   "/menu — главное меню",
 ].join("\n");
@@ -143,6 +148,11 @@ export function createBot(
   }
   // /calc — понятное имя для раскроя
   bot.command("calc", (ctx) => startFlow(ctx, "cut"));
+
+  // ---------- Журнал шитья: те же записи, что и на странице ----------
+  // Команды регистрируем до общего обработчика текста: иначе сообщение
+  // перехватит bot.on("message:text") и до /sewn и /year не дойдёт.
+  registerJournal(bot, config.webApiUrl, config.ownerKey);
 
   // ---------- Кнопки ----------
   bot.callbackQuery(/^menu:(\w+)$/, async (ctx) => {

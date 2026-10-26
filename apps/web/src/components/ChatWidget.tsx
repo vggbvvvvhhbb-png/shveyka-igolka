@@ -3,8 +3,13 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { parseLinkSegments, type AnswerMode } from "@shveyka/core";
+import { FeedbackButtons } from "@/components/FeedbackButtons";
 
-type Message = { role: "user" | "assistant"; content: string };
+/**
+ * id и slugs появляются у ответа ассистента, когда он сохранён в истории:
+ * по id ответ можно оценить, slugs — записи каталога из его контекста.
+ */
+type Message = { role: "user" | "assistant"; content: string; id?: string; slugs?: string[] };
 
 const MAX_MESSAGES = 10;
 const MAX_INPUT = 1000;
@@ -47,9 +52,25 @@ function renderContent(text: string, allowedSlugs: Set<string>): ReactNode[] {
  *
  * ctx — страница каталога, с которой пришёл вопрос (`fabric/<slug>`).
  * Запись этой страницы попадает в контекст ответа первой.
+ *
+ * initialMessages и conversationId — открытый из истории диалог: переписка
+ * продолжается в том же диалоге.
  */
-export function ChatWidget({ initialMessage, ctx }: { initialMessage?: string; ctx?: string }) {
-  const [messages, setMessages] = useState<Message[]>([]);
+export function ChatWidget({
+  initialMessage,
+  initialMessages,
+  conversationId: initialConversationId,
+  ctx,
+}: {
+  initialMessage?: string;
+  initialMessages?: Message[];
+  conversationId?: string;
+  ctx?: string;
+}) {
+  const [messages, setMessages] = useState<Message[]>(initialMessages ?? []);
+  const [conversationId, setConversationId] = useState<string | null>(
+    initialConversationId ?? null
+  );
   // Разрешённые slug последнего ответа ассистента ("тип/slug").
   const [allowedSlugsByIndex, setAllowedSlugsByIndex] = useState<Record<number, Set<string>>>({});
   const [input, setInput] = useState(initialMessage?.slice(0, MAX_INPUT) ?? "");
@@ -72,9 +93,13 @@ export function ChatWidget({ initialMessage, ctx }: { initialMessage?: string; c
       try {
         const res = await fetch("/api/chat", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            ...(conversationId ? { "X-Conversation-Id": conversationId } : {}),
+          },
+          // В запрос уходят только роль и текст: id и slugs нужны одному интерфейсу.
           body: JSON.stringify({
-            messages: history,
+            messages: history.map(({ role, content }) => ({ role, content })),
             ...(ctx ? { ctx } : {}),
             ...(mode ? { mode } : {}),
           }),
@@ -95,6 +120,15 @@ export function ChatWidget({ initialMessage, ctx }: { initialMessage?: string; c
         );
         setAllowedSlugsByIndex((prev) => ({ ...prev, [history.length]: allowed }));
 
+        // Сервер сохраняет диалог и выдаёт его id: запоминаем и кладём в адрес,
+        // чтобы страницу можно было перезагрузить.
+        const savedConversationId = res.headers.get("X-Conversation-Id");
+        const savedMessageId = res.headers.get("X-Message-Id");
+        if (savedConversationId && savedConversationId !== conversationId) {
+          setConversationId(savedConversationId);
+          window.history.replaceState(null, "", `/assistant?c=${savedConversationId}`);
+        }
+
         const reader = res.body.getReader();
         const decoder = new TextDecoder();
         while (true) {
@@ -108,6 +142,17 @@ export function ChatWidget({ initialMessage, ctx }: { initialMessage?: string; c
             return copy;
           });
         }
+
+        if (savedMessageId) {
+          setMessages((prev) => {
+            const copy = [...prev];
+            const last = copy[copy.length - 1];
+            if (last?.role === "assistant") {
+              copy[copy.length - 1] = { ...last, id: savedMessageId, slugs: [...allowed] };
+            }
+            return copy;
+          });
+        }
       } catch (err) {
         const msg =
           err instanceof Error ? err.message : "Не удалось получить ответ, попробуйте позже";
@@ -117,7 +162,7 @@ export function ChatWidget({ initialMessage, ctx }: { initialMessage?: string; c
         setLoading(false);
       }
     },
-    [messages, loading, ctx, mode]
+    [messages, loading, conversationId, ctx, mode]
   );
 
   async function send(e: FormEvent<HTMLFormElement>) {
@@ -147,20 +192,29 @@ export function ChatWidget({ initialMessage, ctx }: { initialMessage?: string; c
             Спросите про ткань, шов или проект. Ответы опираются только на каталог Швейки.
           </p>
         )}
-        {messages.map((m, i) => (
-          <div
-            key={i}
-            className={
-              m.role === "user"
-                ? "ml-auto max-w-[85%] rounded-2xl bg-stone-900 px-4 py-2 text-white whitespace-pre-wrap"
-                : "mr-auto max-w-[85%] rounded-2xl bg-stone-100 px-4 py-2 text-stone-800 whitespace-pre-wrap leading-relaxed"
-            }
-          >
-            {m.role === "assistant"
-              ? renderContent(m.content, allowedSlugsByIndex[i] ?? new Set<string>())
-              : m.content}
-          </div>
-        ))}
+        {messages.map((m, i) => {
+          // У свежего ответа slug приходят из заголовка ответа, у открытого
+          // заново диалога — из сохранённого сообщения.
+          const allowed = m.slugs
+            ? new Set(m.slugs)
+            : (allowedSlugsByIndex[i] ?? new Set<string>());
+          return (
+            <div key={i} className="space-y-1">
+              <div
+                className={
+                  m.role === "user"
+                    ? "ml-auto max-w-[85%] rounded-2xl bg-stone-900 px-4 py-2 text-white whitespace-pre-wrap"
+                    : "mr-auto max-w-[85%] rounded-2xl bg-stone-100 px-4 py-2 text-stone-800 whitespace-pre-wrap leading-relaxed"
+                }
+              >
+                {m.role === "assistant" ? renderContent(m.content, allowed) : m.content}
+              </div>
+              {m.role === "assistant" && m.id && (
+                <FeedbackButtons messageId={m.id} contextSlugs={m.slugs ?? []} />
+              )}
+            </div>
+          );
+        })}
       </div>
 
       {error && (
