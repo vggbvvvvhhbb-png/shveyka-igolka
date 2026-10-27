@@ -48,9 +48,13 @@ jobs:
             "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIBnsq4NrznW69ZavJtcTdOPrlgB48eEXWp+EO5kGa0bC" \
             > ~/.ssh/known_hosts
 
-          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes \
+          # Скрипт деплоя уходит на сервер файлом, а не через stdin.
+          # Через stdin его съедает первый же docker compose run: контейнер
+          # забирает поток, bash видит конец ввода и завершается с кодом 0 —
+          # деплой выглядит успешным, хотя шаги после run не выполнялись.
+          deploy_output=$(ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes \
             "${DEPLOY_USER:-root}@$DEPLOY_HOST" \
-            "DEPLOY_PATH='${DEPLOY_PATH:-/opt/shveyka}' bash -s" <<'REMOTE'
+            "cat > /tmp/shveyka-deploy.sh && DEPLOY_PATH='${DEPLOY_PATH:-/opt/shveyka}' bash /tmp/shveyka-deploy.sh" <<'REMOTE'
           set -euo pipefail
 
           if [ ! -d "$DEPLOY_PATH" ]; then
@@ -70,12 +74,12 @@ jobs:
 
           # Схема обновляется до старта нового кода: код, которому нужны
           # новые колонки, не должен приехать раньше схемы.
-          docker compose run --rm web pnpm db:migrate
+          docker compose run --rm web pnpm db:migrate < /dev/null
 
           # База доступна и каталог на месте. Без этой проверки деплой
           # проходил бы при недоступной базе: главная статическая, а каталог
           # не открывается.
-          docker compose run --rm web pnpm db:check
+          docker compose run --rm web pnpm db:check < /dev/null
 
           # caddy перезапускается вместе с остальными: в нём живёт Caddyfile,
           # и без перезапуска новые правила домена не применяются.
@@ -94,7 +98,7 @@ jobs:
             status=$(docker inspect --format '{{.State.Health.Status}}' "$cid" 2>/dev/null || echo starting)
             if [ "$status" = "healthy" ]; then
               echo "Сайт поднялся и отвечает."
-              exit 0
+              break
             fi
             if [ "$status" = "unhealthy" ]; then
               echo "Контейнер web не прошёл healthcheck."
@@ -104,7 +108,19 @@ jobs:
             sleep 2
           done
 
-          echo "Сайт не поднялся за минуту."
-          docker compose logs --tail 50 web
-          exit 1
+          if [ "${status:-}" != "healthy" ]; then
+            echo "Сайт не поднялся за минуту."
+            docker compose logs --tail 50 web
+            exit 1
+          fi
+
+          # Маркер последнего шага: без него деплой считается неудачным.
+          # Раньше обрыв скрипта выглядел как успешный деплой.
+          echo "Деплой завершён."
           REMOTE
+          )
+          echo "$deploy_output"
+
+          # Скрипт обязан дойти до последней строки: маркер есть — деплой
+          # состоялся, маркера нет — шаги оборвались, и это не успех.
+          echo "$deploy_output" | grep -q "Деплой завершён"
