@@ -13,6 +13,7 @@
     "test": "turbo run test",
     "db:generate": "pnpm --filter @shveyka/db db:generate",
     "db:push": "pnpm --filter @shveyka/db db:push",
+    "db:migrate": "pnpm --filter @shveyka/db db:migrate",
     "db:studio": "pnpm --filter @shveyka/db db:studio",
     "seed": "pnpm --filter @shveyka/db seed",
     "seed:fresh": "pnpm --filter @shveyka/db seed:fresh",

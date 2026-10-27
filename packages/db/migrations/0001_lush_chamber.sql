@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS "sewn_items" (
 	"sewn_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-ALTER TABLE "messages" ADD COLUMN "context_slugs" jsonb DEFAULT '[]'::jsonb NOT NULL;--> statement-breakpoint
+ALTER TABLE "messages" ADD COLUMN IF NOT EXISTS "context_slugs" jsonb DEFAULT '[]'::jsonb NOT NULL;--> statement-breakpoint
 DO $$ BEGIN
  ALTER TABLE "message_feedback" ADD CONSTRAINT "message_feedback_message_id_messages_id_fk" FOREIGN KEY ("message_id") REFERENCES "public"."messages"("id") ON DELETE cascade ON UPDATE no action;
 EXCEPTION
