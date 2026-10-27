@@ -43,8 +43,9 @@ jobs:
 
           # Ключ сервера закреплён: если он сменится, вход будет отклонён.
           # Это защита от подмены сервера, а не доверие ssh-keyscan.
+          # При переезде на другой сервер ключ обновляют здесь.
           printf '%s %s\n' "$DEPLOY_HOST" \
-            "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFGgBjRK7VzNbUNchVr6k8gTyM0E4rTnnX+b9E/JenDL" \
+            "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIBnsq4NrznW69ZavJtcTdOPrlgB48eEXWp+EO5kGa0bC" \
             > ~/.ssh/known_hosts
 
           ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes \
@@ -71,7 +72,14 @@ jobs:
           # новые колонки, не должен приехать раньше схемы.
           docker compose run --rm web pnpm db:migrate
 
-          docker compose up -d web bot
+          # База доступна и каталог на месте. Без этой проверки деплой
+          # проходил бы при недоступной базе: главная статическая, а каталог
+          # не открывается.
+          docker compose run --rm web pnpm db:check
+
+          # caddy перезапускается вместе с остальными: в нём живёт Caddyfile,
+          # и без перезапуска новые правила домена не применяются.
+          docker compose up -d web bot caddy
           docker compose ps
 
           # Ждём, пока контейнер пройдёт healthcheck.
