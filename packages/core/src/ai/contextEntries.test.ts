@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { buildContextSlugsHeader, flattenContext, groupContext } from "./contextEntries";
+import {
+  buildContextSlugsHeader,
+  flattenContext,
+  groupContext,
+  measurementsOf,
+} from "./contextEntries";
 import type { AssistantContext } from "./contextSchema";
 
 const FABRIC = {
@@ -68,6 +73,31 @@ describe("groupContext", () => {
     expect(roundTrip.fabrics.map((f) => f.slug)).toEqual(["denim", "linen"]);
     expect(roundTrip.seams.map((s) => s.slug)).toEqual(["plain-seam"]);
     expect(roundTrip.projects.map((p) => p.slug)).toEqual(["apron"]);
+  });
+
+  it("мерки возвращаются в контекст отдельным аргументом", () => {
+    // Мерок нет среди записей каталога: без отдельного аргумента они бы
+    // потерялись, и промт остался бы без размеров пользователя.
+    const roundTrip = groupContext(flattenContext(context), { bust: 92, waist: 74 });
+
+    expect(roundTrip.measurements).toEqual({ bust: 92, waist: 74 });
+  });
+
+  it("пустые мерки в контекст не попадают", () => {
+    const roundTrip = groupContext(flattenContext(context), {});
+
+    expect(roundTrip.measurements).toBeUndefined();
+  });
+});
+
+describe("measurementsOf", () => {
+  it("достаёт мерки из сгруппированного контекста", () => {
+    expect(measurementsOf({ ...context, measurements: { hip: 98 } })).toEqual({ hip: 98 });
+  });
+
+  it("без мерок возвращает undefined", () => {
+    expect(measurementsOf(context)).toBeUndefined();
+    expect(measurementsOf({ ...context, measurements: {} })).toBeUndefined();
   });
 });
 

@@ -6,8 +6,9 @@ export default function robots(): MetadataRoute.Robots {
     rules: {
       userAgent: "*",
       allow: "/",
-      // Личные страницы в индексе не нужны.
-      disallow: ["/api/", "/measurements"],
+      // Личные страницы в индексе не нужны: мерки и журнал владельца,
+      // форма входа и история диалогов.
+      disallow: ["/api/", "/journal", "/measurements", "/owner", "/assistant/history"],
     },
     sitemap: `${SITE_URL}/sitemap.xml`,
   };

@@ -5,7 +5,6 @@ import {
   cacheKey,
   collectContextSlugs,
   createRequestId,
-  flattenContext,
   groupContext,
   hasMeasurements,
   isCacheable,
@@ -194,8 +193,7 @@ export async function POST(req: Request): Promise<Response> {
     // собираются в одной функции — маршрут остаётся тонкой обвязкой.
     const prep = await prepareChat(
       {
-        search: async (question) =>
-          flattenContext(await queries.searchContext(db, question, { withMeasurements: owner })),
+        search: (question) => queries.searchContext(db, question, { withMeasurements: owner }),
         entry: (ref) =>
           queries.findContextEntry(db, ref.kind, ref.slug, { withMeasurements: owner }),
         pool: poolOf(catalog),
@@ -203,7 +201,9 @@ export async function POST(req: Request): Promise<Response> {
       { question: lastUser.content, ctx: validated.ctx, mode: validated.mode }
     );
 
-    const context = groupContext(prep.context);
+    // Мерки владельца возвращаются в блок данных: без них промт остался бы
+    // без размеров пользователя, а ответ считался бы общим.
+    const context = groupContext(prep.context, prep.measurements);
     const systemPrompt = `${buildSystemPrompt(context)}\n\n${prep.rules}`;
 
     // Список slug из контекста — UI сделает кликабельными только ссылки на них.
@@ -221,7 +221,7 @@ export async function POST(req: Request): Promise<Response> {
 
     // Кэшируем только ответы, которые зависят от каталога, а не от человека:
     // без истории диалога и без мерок. Мерки попадают в ответ только владельцу.
-    const usesMeasurements = hasMeasurements(context.measurements);
+    const usesMeasurements = hasMeasurements(prep.measurements);
     const cacheable = isCacheable({ hasHistory: messages.length > 1, usesMeasurements });
 
     const key = cacheKey({

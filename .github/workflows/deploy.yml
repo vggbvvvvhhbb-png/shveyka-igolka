@@ -1,0 +1,96 @@
+name: Deploy
+
+# Деплой на сервер: код обновляется, образы пересобираются, схема БД
+# обновляется, контейнеры перезапускаются.
+#
+# Настройка (репозиторий → Settings → Secrets and variables → Actions):
+#   Secret:    DEPLOY_SSH_KEY — приватный ключ для входа на сервер;
+#   Variables: DEPLOY_HOST, DEPLOY_USER, DEPLOY_PATH.
+#
+# Пока переменные не заданы, шаг деплоя пропускается: репозиторий можно
+# пушить, не поднимая сайт.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ vars.DEPLOY_USER }}
+          DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${DEPLOY_HOST:-}" ] || [ -z "${DEPLOY_SSH_KEY:-}" ]; then
+            echo "Деплой пропущен: не заданы DEPLOY_HOST или DEPLOY_SSH_KEY."
+            exit 0
+          fi
+
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+
+          # Ключ сервера закреплён: если он сменится, вход будет отклонён.
+          # Это защита от подмены сервера, а не доверие ssh-keyscan.
+          printf '%s %s\n' "$DEPLOY_HOST" \
+            "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFGgBjRK7VzNbUNchVr6k8gTyM0E4rTnnX+b9E/JenDL" \
+            > ~/.ssh/known_hosts
+
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes \
+            "${DEPLOY_USER:-root}@$DEPLOY_HOST" \
+            "DEPLOY_PATH='${DEPLOY_PATH:-/opt/shveyka}' bash -s" <<'REMOTE'
+          set -euo pipefail
+
+          if [ ! -d "$DEPLOY_PATH" ]; then
+            git clone https://github.com/vggbvvvvhhbb-png/shveyka-igolka.git "$DEPLOY_PATH"
+          fi
+          cd "$DEPLOY_PATH"
+
+          # Код сервера должен совпадать с main. Расхождение — ошибка,
+          # а не повод затирать правки на сервере.
+          git fetch origin main
+          git checkout main
+          git pull --ff-only origin main
+
+          # Образы собираются до переключения: старые контейнеры продолжают
+          # работать, пока собираются новые.
+          docker compose build web bot
+
+          # Схема обновляется до старта нового кода: код, которому нужны
+          # новые колонки, не должен приехать раньше схемы.
+          docker compose run --rm web pnpm db:migrate
+
+          docker compose up -d web bot
+          docker compose ps
+
+          # Ждём, пока контейнер пройдёт healthcheck.
+          cid=$(docker compose ps -q web)
+          for _ in $(seq 1 30); do
+            status=$(docker inspect --format '{{.State.Health.Status}}' "$cid" 2>/dev/null || echo starting)
+            if [ "$status" = "healthy" ]; then
+              echo "Сайт поднялся и отвечает."
+              exit 0
+            fi
+            if [ "$status" = "unhealthy" ]; then
+              echo "Контейнер web не прошёл healthcheck."
+              docker compose logs --tail 50 web
+              exit 1
+            fi
+            sleep 2
+          done
+
+          echo "Сайт не поднялся за минуту."
+          docker compose logs --tail 50 web
+          exit 1
+          REMOTE

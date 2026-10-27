@@ -1,5 +1,6 @@
 import { MAX_CONTEXT_SLUGS_LENGTH } from "./constants";
 import type { AssistantContext, FabricContext, ProjectContext, SeamContext } from "./contextSchema";
+import { hasMeasurements, type BodyMeasurements } from "./measurements";
 import { ROUTE_SEGMENT, type PageKind } from "./pageContext";
 
 /**
@@ -51,8 +52,28 @@ export function flattenContext(ctx: AssistantContext): ContextEntry[] {
   return out;
 }
 
-/** Собирает обратно сгруппированный контекст — он нужен блоку данных промта. */
-export function groupContext(entries: readonly ContextEntry[]): AssistantContext {
+/**
+ * Мерки из сгруппированного контекста.
+ *
+ * Мерки — не запись каталога: у них нет страницы и слага, поэтому в плоский
+ * список они не попадают. Их нужно доставать отдельно, иначе при обратной
+ * сборке контекста они молча теряются: промт остаётся без размеров
+ * пользователя, а ответ с мерками считается общим и попадает в кэш.
+ */
+export function measurementsOf(ctx: AssistantContext): BodyMeasurements | undefined {
+  return hasMeasurements(ctx.measurements) ? ctx.measurements : undefined;
+}
+
+/**
+ * Собирает обратно сгруппированный контекст — он нужен блоку данных промта.
+ *
+ * Мерки передаются отдельным аргументом: в плоском списке записей их нет,
+ * и без них блок данных остался бы без размеров пользователя.
+ */
+export function groupContext(
+  entries: readonly ContextEntry[],
+  measurements?: BodyMeasurements
+): AssistantContext {
   return {
     fabrics: entries
       .filter((e): e is Extract<ContextEntry, { kind: "fabric" }> => e.kind === "fabric")
@@ -63,6 +84,7 @@ export function groupContext(entries: readonly ContextEntry[]): AssistantContext
     projects: entries
       .filter((e): e is Extract<ContextEntry, { kind: "project" }> => e.kind === "project")
       .map((e) => e.data),
+    ...(hasMeasurements(measurements) ? { measurements } : {}),
   };
 }
 

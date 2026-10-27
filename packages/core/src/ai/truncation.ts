@@ -2,15 +2,33 @@ const LENGTH_REASONS = new Set(["length", "max_tokens"]);
 const TERMINAL = /[.!?…)»":;\]]\s*$/;
 
 /**
+ * Ответ заканчивается числом — возможно, с единицей измерения.
+ *
+ * «Рост — 168 см» — законченный ответ, хотя точки в конце нет. Раньше такой
+ * ответ считался оборванным: помощник просил «продолжи», а в кэш он не
+ * попадал.
+ */
+const ENDS_WITH_NUMBER = /\d\s*(см|мм|м|г|кг|шт|%|°)?\s*$/;
+
+/**
  * Ответ оборван: провайдер сообщил про лимит токенов или текст кончается
  * на полуслове.
+ *
+ * Если провайдер назвал причину завершения, веры больше тексту: «stop» и
+ * «end_turn» означают, что ответ дописан целиком, и никакой «полусловный»
+ * хвост в этом не доказывает. По одному тексту обрыв отличить нельзя —
+ * законченный ответ часто заканчивается словом или числом с единицей
+ * измерения и не имеет точки в конце.
  */
 export function looksTruncated(text: string, finishReason?: string | null): boolean {
-  if (finishReason && LENGTH_REASONS.has(finishReason)) return true;
+  if (finishReason) return LENGTH_REASONS.has(finishReason);
+
+  // Причину завершения провайдер не сообщил — решаем по тексту.
   const t = text.trimEnd();
-  return t.length > 0 && !TERMINAL.test(t) && !/\d$/.test(t);
+  if (t.length === 0) return false;
+  if (TERMINAL.test(t)) return false;
+  return !ENDS_WITH_NUMBER.test(t);
 }
 
-/** Пометка в конце оборванного ответа: подсказывает, что делать дальше. */
 export const CONTINUE_NOTE =
   "\n\n_Ответ получился длинным и оборвался. Напишите «продолжи» — допишу._";
