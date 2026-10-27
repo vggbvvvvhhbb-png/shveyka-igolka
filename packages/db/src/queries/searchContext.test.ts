@@ -270,6 +270,22 @@ describe("searchContext with pglite", () => {
     expect(ctx.projects.find((p) => p.slug === "pillowcase-simple")?.size_hint).toBeUndefined();
   });
 
+  it("мерки возвращаются даже когда в вопросе нет ключевых слов", async () => {
+    // «ткань» — общее слово, оно отбрасывается: вопрос остаётся без ключевых
+    // слов, и ответ считается по меркам владельца.
+    const ctx = await searchContext(db, "ткань");
+
+    expect(ctx.fabrics).toEqual([]);
+    expect(ctx.measurements).toEqual({ bust: 92, waist: 74, hip: 98, height: 168 });
+  });
+
+  it("мерки не попадают в контекст постороннего посетителя", async () => {
+    const ctx = await searchContext(db, "юбка на резинке", { withMeasurements: false });
+
+    expect(ctx.measurements).toBeUndefined();
+    expect(ctx.projects.find((p) => p.slug === "skirt-elastic-waist")?.size_hint).toBeUndefined();
+  });
+
   it("находит шов, если в запросе «е» вместо «ё»", async () => {
     // В алиасе записано «обмётанная петля», пользователь пишет «обметканная».
     const ctx = await searchContext(db, "обметканная петля");

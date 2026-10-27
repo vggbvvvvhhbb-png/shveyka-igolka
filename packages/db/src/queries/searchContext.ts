@@ -197,7 +197,9 @@ export async function searchContext(
   const measurements = options.withMeasurements === false ? undefined : await loadMeasurements(db);
 
   if (keywords.length === 0) {
-    return { fabrics: [], seams: [], projects: [] };
+    // Мерки возвращаются даже без ключевых слов: вопрос «а сколько ткани
+    // нужно?» состоит из одних общих слов, и ответ считается по меркам.
+    return { fabrics: [], seams: [], projects: [], ...(measurements ? { measurements } : {}) };
   }
 
   // Ткани — один запрос по всем ключевым словам сразу. Совпадение по названию
@@ -252,8 +254,6 @@ export async function findContextEntry(
   slug: string,
   options: SearchOptions = {}
 ): Promise<ContextEntry | null> {
-  const measurements = options.withMeasurements === false ? undefined : await loadMeasurements(db);
-
   if (kind === "fabric") {
     const row = await withRetry(() => getFabricBySlug(db, slug));
     if (!row) return null;
@@ -268,6 +268,8 @@ export async function findContextEntry(
     return { kind: "seam", slug: data.slug, name: data.name, data };
   }
 
+  // Мерки нужны только проекту: из них считается подсказка по размеру.
+  const measurements = options.withMeasurements === false ? undefined : await loadMeasurements(db);
   const row = await withRetry(() => getProjectById(db, slug));
   if (!row) return null;
   const data = toProjectContext(row, measurements);
