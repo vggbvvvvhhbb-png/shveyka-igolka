@@ -13,6 +13,7 @@
     "seed": "tsx src/seed.ts",
     "seed:fresh": "tsx src/seed.ts --fresh",
     "seed:dry": "tsx src/seed.ts --fresh --dry-run",
+    "db:check": "tsx src/scripts/dbCheck.ts",
     "lint": "eslint src/",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
