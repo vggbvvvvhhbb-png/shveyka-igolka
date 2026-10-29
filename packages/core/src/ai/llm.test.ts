@@ -1,5 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { chat, LlmError, modelChain, parseModelChain, stripThinking } from "./llm";
+import {
+  chat,
+  LlmError,
+  modelChain,
+  parseModelChain,
+  stripThinking,
+  DEFAULT_MODEL_CHAIN,
+} from "./llm";
 
 /** Ответ провайдера в формате OpenAI-совместимого API. */
 function jsonResponse(body: unknown, status = 200): Response {
@@ -43,8 +50,14 @@ describe("modelChain", () => {
     expect(modelChain("navigator", env)).toEqual(["n1"]);
   });
 
-  it("незаданная цепочка — пустая", () => {
-    expect(modelChain("fast", {})).toEqual([]);
+  it("незаданная цепочка — берётся цепочка по умолчанию", () => {
+    expect(modelChain("fast", {})).toEqual([...DEFAULT_MODEL_CHAIN]);
+    expect(modelChain("reason", { MODELS_REASON: "  " })).toEqual([...DEFAULT_MODEL_CHAIN]);
+  });
+
+  it("цепочка по умолчанию состоит из проверенных моделей", () => {
+    expect(DEFAULT_MODEL_CHAIN).toContain("free/gpt-6-luna");
+    expect(DEFAULT_MODEL_CHAIN.length).toBeGreaterThan(1);
   });
 });
 

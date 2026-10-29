@@ -8,6 +8,7 @@ import {
   groupContext,
   isUuid,
   isWebWorkMode,
+  missingWebModeEnv,
   prepareChat,
   suggestNearest,
   type AnswerMode,
@@ -96,11 +97,18 @@ export async function POST(req: Request): Promise<Response> {
     return errorResponse("Этот режим работает в разделе «Каталог»", 400, requestId);
   }
 
-  // Без ключей провайдеров режим работать не будет: сообщаем один раз,
-  // не указывая, чего именно не хватает.
-  if (!process.env.EXA_API_KEY || !process.env.APINEX_API_KEY) {
-    console.error("[assistant] provider API key is not configured", { requestId });
-    return errorResponse(GENERIC_ERROR, 500, requestId);
+  // Без ключей провайдеров режим работать не будет. Отдельный текст нужен
+  // для владельца сервера: в лог попадают имена недостающих переменных,
+  // а пользователь видит, что режим пока недоступен, и может вернуться
+  // в «Каталог».
+  const missing = missingWebModeEnv();
+  if (missing.length > 0) {
+    console.error("[assistant] режимы с интернетом не настроены", { requestId, missing });
+    return errorResponse(
+      "Режимы с интернетом пока не настроены на сервере, попробуйте режим «Каталог»",
+      503,
+      requestId
+    );
   }
 
   try {
@@ -200,6 +208,16 @@ export async function POST(req: Request): Promise<Response> {
         429,
         requestId
       );
+    }
+    // Ошибка провайдера: по модели и статусу в логе видно, это неверный
+    // идентификатор модели или отказ самого провайдера.
+    if (err instanceof LlmError) {
+      console.error("[assistant] provider did not answer", {
+        requestId,
+        model: err.model,
+        status: err.status,
+      });
+      return errorResponse(GENERIC_ERROR, 502, requestId);
     }
     logFailure("assistant", requestId, err);
     return errorResponse(GENERIC_ERROR, 500, requestId);

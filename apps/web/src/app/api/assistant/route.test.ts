@@ -163,12 +163,23 @@ describe("POST /api/assistant", () => {
     expect(res.status).toBe(400);
   });
 
-  it("без ключей провайдеров → 500 и никаких обращений к ним", async () => {
+  it("без ключей провайдеров → 503 и никаких обращений к ним", async () => {
     vi.stubEnv("EXA_API_KEY", "");
     const POST = await loadRoute();
     const res = await POST(assistantRequest({ message: "какая игла", mode: "search" }));
+    const body = (await res.json()) as { error: string };
 
-    expect(res.status).toBe(500);
+    expect(res.status).toBe(503);
+    expect(body.error).toContain("не настроены");
+    expect(mocks.runPipeline).not.toHaveBeenCalled();
+  });
+
+  it("без ключа модели — тоже 503", async () => {
+    vi.stubEnv("APINEX_API_KEY", "");
+    const POST = await loadRoute();
+    const res = await POST(assistantRequest({ message: "какая игла", mode: "search" }));
+
+    expect(res.status).toBe(503);
     expect(mocks.runPipeline).not.toHaveBeenCalled();
   });
 
@@ -193,6 +204,15 @@ describe("POST /api/assistant", () => {
 
     expect(res.status).toBe(500);
     expect(body.error).not.toContain("5432");
+  });
+
+  it("отказ провайдера → 502", async () => {
+    const POST = await loadRoute();
+    const { LlmError } = await import("@shveyka/core/ai/llm");
+    mocks.runPipeline.mockRejectedValue(new LlmError("модель не ответила", "m1", 404));
+    const res = await POST(assistantRequest({ message: "какая игла", mode: "search" }));
+
+    expect(res.status).toBe(502);
   });
 
   it("ответ сохраняется в истории вместе с режимом и источниками", async () => {

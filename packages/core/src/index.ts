@@ -19,6 +19,7 @@ export * from "./ai/routeLogic";
 export * from "./ai/workModes";
 export * from "./ai/source";
 export * from "./ai/assistantSchema";
+export * from "./ai/webConfig";
 export * from "./stage11";
 export * from "./api/ids";
 export * from "./ai/feedback";

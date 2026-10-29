@@ -70,10 +70,21 @@ export function parseModelChain(raw: string | undefined): string[] {
 }
 
 /**
+ * Цепочка моделей по умолчанию.
+ *
+ * Используется, когда переменная с цепочкой не задана: режимы с интернетом
+ * должны работать после настройки двух ключей, без списка моделей.
+ * Обе модели проверены у провайдера; вторая подстраховывает на случай,
+ * если первую он перестанет отдавать.
+ */
+export const DEFAULT_MODEL_CHAIN: readonly string[] = ["free/gpt-6-luna", "free/kimi-k3"];
+
+/**
  * Цепочка моделей для задачи.
  *
  * Читается из окружения при каждом вызове: переменные меняются при перезапуске
- * процесса, а в тестах подменяются на лету.
+ * процесса, а в тестах подменяются на лету. Если переменная не задана или
+ * пуста, берётся цепочка по умолчанию.
  */
 export function modelChain(
   kind: ModelKind,
@@ -81,7 +92,8 @@ export function modelChain(
 ): string[] {
   const key =
     kind === "fast" ? "MODELS_FAST" : kind === "reason" ? "MODELS_REASON" : "MODELS_NAVIGATOR";
-  return parseModelChain(env[key]);
+  const chain = parseModelChain(env[key]);
+  return chain.length > 0 ? chain : [...DEFAULT_MODEL_CHAIN];
 }
 
 /**
