@@ -42,6 +42,8 @@ describe("диалоги в pglite", () => {
         context_slugs JSONB NOT NULL DEFAULT '[]'::jsonb,
         mode TEXT,
         sources JSONB NOT NULL DEFAULT '[]'::jsonb,
+        follow_ups JSONB NOT NULL DEFAULT '[]'::jsonb,
+        related JSONB NOT NULL DEFAULT '[]'::jsonb,
         created_at TIMESTAMPTZ DEFAULT NOW()
       )
     `);
@@ -186,6 +188,31 @@ describe("диалоги в pglite", () => {
     expect(messages[0].mode).toBe("search");
     expect(messages[0].sources).toHaveLength(1);
     expect(messages[0].sources[0].url).toBe("https://example.com/a");
+  });
+
+  it("сохраняет вопросы для кнопок и записи каталога вместе с ответом", async () => {
+    const conversation = await createConversation(db);
+
+    await addMessage(db, conversation.id, "assistant", "Ответ", "id-ответа-с-кнопками", [], {
+      mode: "search",
+      sources: [],
+      followUps: ["Какое натяжение поставить?", "Какую нить взять?"],
+      related: [{ label: "Джинса", href: "/fabrics/denim" }],
+    });
+
+    const messages = await listMessages(db, conversation.id);
+    expect(messages[0].follow_ups).toEqual(["Какое натяжение поставить?", "Какую нить взять?"]);
+    expect(messages[0].related).toEqual([{ label: "Джинса", href: "/fabrics/denim" }]);
+  });
+
+  it("у обычного ответа вопросы пустые, а записи каталога — пустой список", async () => {
+    const conversation = await createConversation(db);
+
+    await addMessage(db, conversation.id, "assistant", "Ответ по каталогу");
+
+    const messages = await listMessages(db, conversation.id);
+    expect(messages[0].follow_ups).toEqual([]);
+    expect(messages[0].related).toEqual([]);
   });
 
   it("у обычного ответа режим пустой, а источники — пустой список", async () => {
