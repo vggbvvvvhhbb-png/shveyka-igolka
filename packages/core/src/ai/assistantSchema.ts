@@ -37,6 +37,12 @@ export const SourceSchema = z.object({
   date: z.string().optional(),
 });
 
+/** Одна настройка машины в карточке записи каталога. */
+const SettingRowSchema = z.object({
+  label: z.string(),
+  value: z.string(),
+});
+
 /** Тело ответа режима работы. */
 export const AssistantResponseSchema = z.object({
   /** Текст ответа. */
@@ -53,9 +59,20 @@ export const AssistantResponseSchema = z.object({
   degraded: z.string().nullable(),
   /** Вопросы для кнопок под ответом. */
   followUps: z.array(z.string()).max(4).default([]),
-  /** Записи каталога, попавшие в ответ: показываются карточками. */
+  /**
+   * Записи каталога, попавшие в ответ: показываются карточками.
+   *
+   * Вместе со ссылкой могут идти настройки машины: их берут из записей
+   * каталога, поэтому карточка не расходится с каталогом.
+   */
   related: z
-    .array(z.object({ label: z.string(), href: z.string() }))
+    .array(
+      z.object({
+        label: z.string(),
+        href: z.string(),
+        settings: z.array(SettingRowSchema).default([]),
+      })
+    )
     .max(8)
     .default([]),
   /** id диалога, если ответ сохранён в истории. */

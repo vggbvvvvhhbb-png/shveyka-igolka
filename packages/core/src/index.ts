@@ -21,6 +21,7 @@ export * from "./ai/source";
 export * from "./ai/assistantSchema";
 export * from "./ai/webConfig";
 export * from "./ai/answerFormat";
+export * from "./ai/machineSettings";
 export * from "./ai/markdown";
 export * from "./stage11";
 export * from "./api/ids";

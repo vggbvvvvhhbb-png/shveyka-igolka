@@ -7,7 +7,7 @@ import {
   WORK_MODE_HINTS,
   WORK_MODE_LABELS,
   parseAnswer,
-  parseRelatedLinks,
+  parseRelatedCards,
   type AnswerMode,
   type AssistantResponse,
   type Source,
@@ -16,6 +16,18 @@ import {
 import { FeedbackButtons } from "@/components/FeedbackButtons";
 import { Markdown } from "@/components/Markdown";
 import { SourceList } from "@/components/SourceList";
+
+/**
+ * Запись каталога под ответом: ссылка и, если есть, настройки машины.
+ *
+ * Настройки приходят из записей каталога, поэтому у старых сообщений в
+ * истории их может не быть — карточка показывает просто ссылку.
+ */
+export type RelatedItem = {
+  label: string;
+  href: string;
+  settings?: { label: string; value: string }[];
+};
 
 /**
  * id и slugs появляются у ответа ассистента, когда он сохранён в истории:
@@ -40,7 +52,7 @@ export type Message = {
   /** Вопросы для кнопок под ответом. */
   followUps?: string[];
   /** Записи каталога, попавшие в ответ. */
-  related?: { label: string; href: string }[];
+  related?: RelatedItem[];
 };
 
 const MAX_MESSAGES = 10;
@@ -223,7 +235,7 @@ export function ChatWidget({
 
         // Записи каталога из контекста ответа: показываются карточками под
         // ответом, чтобы можно было сразу перейти к нужной записи.
-        const related = parseRelatedLinks(res.headers.get("X-Context-Related"));
+        const related = parseRelatedCards(res.headers.get("X-Context-Related"));
 
         // Сервер сохраняет диалог и выдаёт его id: запоминаем и кладём в адрес,
         // чтобы страницу можно было перезагрузить.
@@ -381,15 +393,26 @@ export function ChatWidget({
                   {m.related && m.related.length > 0 && (
                     <div className="rounded-xl border border-stone-200 bg-white p-3">
                       <p className="text-sm text-stone-500">Из каталога Швейки</p>
-                      <div className="mt-2 flex flex-wrap gap-2">
+                      <div className="mt-2 grid gap-2 sm:grid-cols-2">
                         {m.related.map((item) => (
-                          <Link
-                            key={item.href}
-                            href={item.href}
-                            className="rounded-full bg-stone-100 px-3 py-1 text-sm text-stone-700 hover:bg-stone-200"
-                          >
-                            {item.label}
-                          </Link>
+                          <div key={item.href} className="rounded-lg border border-stone-200 p-2.5">
+                            <Link
+                              href={item.href}
+                              className="text-sm font-medium text-stone-900 hover:underline"
+                            >
+                              {item.label}
+                            </Link>
+                            {item.settings && item.settings.length > 0 && (
+                              <dl className="mt-2 space-y-0.5 text-xs">
+                                {item.settings.map((row) => (
+                                  <div key={row.label} className="flex gap-2">
+                                    <dt className="shrink-0 text-stone-500">{row.label}</dt>
+                                    <dd className="text-stone-800">{row.value}</dd>
+                                  </div>
+                                ))}
+                              </dl>
+                            )}
+                          </div>
                         ))}
                       </div>
                     </div>

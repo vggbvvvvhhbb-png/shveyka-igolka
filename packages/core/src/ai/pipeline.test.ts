@@ -182,7 +182,24 @@ describe("runPipeline", () => {
       { mode: "search", question: "шить трикотаж", style: "short", catalog: "" },
       { models: MODELS }
     );
-    expect(mocks.chat.mock.calls[0][0].maxTokens).toBe(600);
+    expect(mocks.chat.mock.calls[0][0].maxTokens).toBe(900);
+  });
+
+  it("в развёрнутом режиме модель думает глубже", async () => {
+    await runPipeline(
+      { mode: "research", question: "сравни ткани", style: null, catalog: "" },
+      { models: MODELS }
+    );
+    expect(mocks.chat.mock.calls[0][0].reasoningEffort).toBe("high");
+
+    vi.clearAllMocks();
+    mocks.chat.mockResolvedValue({ text: "Ответ.", model: "fast-1" });
+    await runPipeline(
+      { mode: "search", question: "шить трикотаж", style: "short", catalog: "" },
+      { models: MODELS }
+    );
+    // В коротком ответе размышление не помогает: человек просил одну мысль.
+    expect(mocks.chat.mock.calls[0][0].reasoningEffort).toBeUndefined();
   });
 
   it("текст ответа приводится к читаемому виду", async () => {

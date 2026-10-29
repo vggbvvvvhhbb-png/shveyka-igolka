@@ -12,10 +12,15 @@ describe("режимы ответа", () => {
   });
 
   it("у каждого режима свой бюджет токенов", () => {
-    expect(maxTokensFor("short")).toBe(500);
-    expect(maxTokensFor("steps")).toBe(1800);
-    expect(maxTokensFor("why")).toBe(1600);
-    expect(maxTokensFor(null)).toBe(2000);
+    expect(maxTokensFor("short")).toBe(700);
+    expect(maxTokensFor("steps")).toBe(3200);
+    expect(maxTokensFor("why")).toBe(3000);
+    expect(maxTokensFor(null)).toBe(3000);
+  });
+
+  it("по шагам бюджет не меньше, чем в режиме «Почему»", () => {
+    // Оба режима развёрнутые: обрезанный пошаговый ответ бесполезен.
+    expect(maxTokensFor("steps")).toBeGreaterThanOrEqual(maxTokensFor("why"));
   });
 
   it("режим без выбора не добавляет инструкцию", () => {

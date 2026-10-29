@@ -80,11 +80,31 @@ export function parseModelChain(raw: string | undefined): string[] {
 export const DEFAULT_MODEL_CHAIN: readonly string[] = ["free/gpt-6-luna", "free/kimi-k3"];
 
 /**
+ * Цепочки моделей по умолчанию для каждого назначения.
+ *
+ * Раньше все три назначения делили одну цепочку, и «Рассуждение» работало
+ * на той же модели, что и «Поиск»: разница была только в промте. Замер
+ * показал, что у моделей разная склонность к развёрнутому ответу с
+ * разделами, поэтому у рассуждения своя цепочка.
+ *
+ * Вторая модель в цепочке — страховка: если первую провайдер перестанет
+ * отдавать или она вернёт пустоту, ответ всё равно появится.
+ */
+export const DEFAULT_MODEL_CHAINS: Record<ModelKind, readonly string[]> = {
+  // Быстрый ответ: скорость важнее глубины.
+  fast: ["free/gpt-6-luna", "free/qwen-3.8-max"],
+  // Рассуждение: нужна модель, которая держит структуру и пишет подробно.
+  reason: ["free/qwen-3.8-max", "free/deepseek-v4-pro-0813", "free/gpt-6-luna"],
+  // Планировщик поиска: отвечает коротким списком запросов, скорость здесь главное.
+  navigator: ["free/gpt-6-luna", "free/qwen-3.8-max"],
+};
+
+/**
  * Цепочка моделей для задачи.
  *
  * Читается из окружения при каждом вызове: переменные меняются при перезапуске
  * процесса, а в тестах подменяются на лету. Если переменная не задана или
- * пуста, берётся цепочка по умолчанию.
+ * пуста, берётся цепочка по умолчанию для этого назначения.
  */
 export function modelChain(
   kind: ModelKind,
@@ -93,7 +113,7 @@ export function modelChain(
   const key =
     kind === "fast" ? "MODELS_FAST" : kind === "reason" ? "MODELS_REASON" : "MODELS_NAVIGATOR";
   const chain = parseModelChain(env[key]);
-  return chain.length > 0 ? chain : [...DEFAULT_MODEL_CHAIN];
+  return chain.length > 0 ? chain : [...DEFAULT_MODEL_CHAINS[kind]];
 }
 
 /**
@@ -124,7 +144,19 @@ export type ChatOptions = {
   timeoutMs?: number;
   /** Имя провайдера для логов. */
   provider?: string;
+  /**
+   * Глубина размышления модели: low, medium или high.
+   *
+   * Отдельно от maxTokens: бюджет — это сколько модель может написать,
+   * а это — сколько она обдумывает перед ответом. Замер показал, что
+   * effort=high даёт заметно больше содержательного текста, чем low,
+   * при том же лимите токенов.
+   */
+  reasoningEffort?: ReasoningEffort;
 };
+
+/** Глубина размышления модели. */
+export type ReasoningEffort = "low" | "medium" | "high";
 
 /** Ответ модели вместе с именем модели, которая его дала. */
 export type ChatResult = {
@@ -202,6 +234,9 @@ async function askModel(
     temperature: options.temperature ?? 0.3,
     max_tokens: options.maxTokens ?? 1200,
     stream: false,
+    // Провайдеры, которые не знают параметра, его просто проигнорируют:
+    // неизвестное поле в теле запроса им не мешает.
+    ...(options.reasoningEffort ? { reasoning_effort: options.reasoningEffort } : {}),
   });
 
   for (let attempt = 0; attempt <= RATE_LIMIT_RETRIES; attempt++) {

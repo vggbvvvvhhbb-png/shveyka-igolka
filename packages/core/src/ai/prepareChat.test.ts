@@ -51,7 +51,7 @@ describe("prepareChat", () => {
 
     expect(prepared.context.map((e) => e.slug)).toEqual(["denim", "linen"]);
     expect(prepared.pinned?.slug).toBe("denim");
-    expect(prepared.maxTokens).toBe(1800);
+    expect(prepared.maxTokens).toBe(3200);
     expect(prepared.rules).toContain("По шагам");
   });
 
@@ -79,7 +79,7 @@ describe("prepareChat", () => {
     const prepared = await prepareChat(deps, { question: "про лён", mode: "какая-то бредь" });
 
     expect(prepared.mode).toBeNull();
-    expect(prepared.maxTokens).toBe(2000);
+    expect(prepared.maxTokens).toBe(3000);
     expect(prepared.rules).toBe("");
   });
 

@@ -1,12 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
   buildContextSlugsHeader,
-  collectRelatedLinks,
   flattenContext,
   groupContext,
   measurementsOf,
-  parseRelatedLinks,
 } from "./contextEntries";
+import { collectRelatedCards, parseRelatedCards } from "./machineSettings";
 import type { AssistantContext } from "./contextSchema";
 
 const FABRIC = {
@@ -124,36 +123,36 @@ describe("buildContextSlugsHeader", () => {
 
 describe("карточки каталога", () => {
   it("собирает подпись и адрес страницы", () => {
-    const links = collectRelatedLinks(flattenContext(context));
+    const cards = collectRelatedCards(flattenContext(context));
 
-    expect(links[0]).toEqual({ label: "Джинса", href: "/fabrics/denim" });
-    expect(links.map((l) => l.href)).toContain("/seams/plain-seam");
+    expect(cards[0]).toEqual({ label: "Джинса", href: "/fabrics/denim", settings: [] });
+    expect(cards.map((card) => card.href)).toContain("/seams/plain-seam");
   });
 
   it("заголовок разбирается обратно в карточки", () => {
-    const links = collectRelatedLinks(flattenContext(context));
-    expect(parseRelatedLinks(JSON.stringify(links))).toEqual(links);
+    const cards = collectRelatedCards(flattenContext(context));
+    expect(parseRelatedCards(JSON.stringify(cards))).toEqual(cards);
   });
 
   it("экранированный заголовок с русскими названиями разбирается", () => {
-    const links = collectRelatedLinks(flattenContext(context));
-    const header = encodeURIComponent(JSON.stringify(links));
+    const cards = collectRelatedCards(flattenContext(context));
+    const header = encodeURIComponent(JSON.stringify(cards));
 
     // Заголовок должен остаться байтовой строкой: иначе сервер его не примет.
     const isAscii = [...header].every((char) => char.charCodeAt(0) < 128);
     expect(isAscii).toBe(true);
-    expect(parseRelatedLinks(header)).toEqual(links);
+    expect(parseRelatedCards(header)).toEqual(cards);
   });
 
   it("битый заголовок не ломает ответ", () => {
-    expect(parseRelatedLinks(null)).toEqual([]);
-    expect(parseRelatedLinks("")).toEqual([]);
-    expect(parseRelatedLinks("не json")).toEqual([]);
-    expect(parseRelatedLinks('{"label":"Джинса"}')).toEqual([]);
+    expect(parseRelatedCards(null)).toEqual([]);
+    expect(parseRelatedCards("")).toEqual([]);
+    expect(parseRelatedCards("не json")).toEqual([]);
+    expect(parseRelatedCards('{"label":"Джинса"}')).toEqual([]);
   });
 
   it("внешние адреса карточками не становятся", () => {
     const raw = JSON.stringify([{ label: "Чужой сайт", href: "https://example.com" }]);
-    expect(parseRelatedLinks(raw)).toEqual([]);
+    expect(parseRelatedCards(raw)).toEqual([]);
   });
 });

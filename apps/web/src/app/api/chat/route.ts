@@ -4,7 +4,7 @@ import {
   buildSystemPrompt,
   cacheKey,
   collectContextSlugs,
-  collectRelatedLinks,
+  collectRelatedCards,
   createRequestId,
   groupContext,
   hasMeasurements,
@@ -216,8 +216,9 @@ export async function POST(req: Request): Promise<Response> {
     // ссылки на каталог снова кликабельны.
     const contextSlugs = collectContextSlugs(prep.context);
     // Записи каталога из контекста: интерфейс показывает их карточками под
-    // ответом, чтобы можно было сразу перейти к нужной записи.
-    const related = collectRelatedLinks(prep.context);
+    // ответом, чтобы можно было сразу перейти к нужной записи. Вместе со
+    // ссылкой идут настройки машины: их берут из самих записей каталога.
+    const related = collectRelatedCards(prep.context);
 
     const headers = {
       "Content-Type": "text/plain; charset=utf-8",

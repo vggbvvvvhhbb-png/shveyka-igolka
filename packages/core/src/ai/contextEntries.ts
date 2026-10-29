@@ -1,7 +1,7 @@
 import { MAX_CONTEXT_SLUGS_LENGTH } from "./constants";
 import type { AssistantContext, FabricContext, ProjectContext, SeamContext } from "./contextSchema";
 import { hasMeasurements, type BodyMeasurements } from "./measurements";
-import { ROUTE_SEGMENT, type PageKind } from "./pageContext";
+import { ROUTE_SEGMENT } from "./pageContext";
 
 /**
  * Запись каталога в плоском виде.
@@ -117,68 +117,6 @@ export function buildContextSlugsHeader(
 }
 
 /**
- * Записи контекста как ссылки для интерфейса: подпись и адрес страницы.
- *
- * Интерфейс показывает их карточками под ответом: из ответа про ткань
- * можно сразу перейти на страницу этой ткани в каталоге.
+ * Карточки записей каталога живут в machineSettings.ts: там же, где сами
+ * настройки машины и разбор заголовка с карточками.
  */
-export function collectRelatedLinks(
-  entries: readonly ContextEntry[]
-): { label: string; href: string }[] {
-  return entries.map((entry) => ({
-    label: entry.name,
-    href: `/${ROUTE_SEGMENT[entry.kind]}/${entry.slug}`,
-  }));
-}
-
-/**
- * Разбирает заголовок X-Context-Related обратно в список карточек.
- *
- * Заголовок приходит в escape-виде: в названиях записей есть русские буквы,
- * а байтовая строка HTTP-заголовка их не вмещает.
- *
- * Заголовок приходит с сервера, поэтому содержимое может оказаться любым:
- * пустым, обрезанным или вовсе не тем, что ожидалось. Битый заголовок не
- * должен ломать ответ — в этом случае карточек просто не будет.
- */
-export function parseRelatedLinks(raw: string | null): { label: string; href: string }[] {
-  if (!raw) return [];
-
-  let json: string;
-  try {
-    json = decodeURIComponent(raw);
-  } catch {
-    return [];
-  }
-
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(json);
-  } catch {
-    return [];
-  }
-
-  if (!Array.isArray(parsed)) return [];
-
-  const links: { label: string; href: string }[] = [];
-  for (const item of parsed) {
-    if (!item || typeof item !== "object") continue;
-    const { label, href } = item as { label?: unknown; href?: unknown };
-    if (typeof label !== "string" || typeof href !== "string") continue;
-    // Адрес ведёт внутрь сайта: никакие внешние ссылки карточками не бывают.
-    if (!href.startsWith("/") || href.startsWith("//")) continue;
-    links.push({ label, href });
-  }
-
-  return links;
-}
-
-/** Вид записи по сегменту маршрута — для поиска по странице. */
-export const kindOfSegment = (segment: string): PageKind | null =>
-  segment === "fabrics"
-    ? "fabric"
-    : segment === "seams"
-      ? "seam"
-      : segment === "projects"
-        ? "project"
-        : null;

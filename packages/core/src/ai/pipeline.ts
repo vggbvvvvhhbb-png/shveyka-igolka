@@ -177,6 +177,9 @@ export async function runPipeline(
     messages,
     temperature: skill.modelKind === "fast" ? 0.3 : 0.2,
     maxTokens: budgetFor(skill, input.style),
+    // В коротком ответе размышление не помогает: человек просил одну мысль,
+    // и время до ответа важнее его глубины.
+    reasoningEffort: input.style === "short" ? undefined : skill.reasoningEffort,
   });
 
   // Текст приводится к читаемому виду, а блок вопросов выносится отдельно:

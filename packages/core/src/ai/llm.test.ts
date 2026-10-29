@@ -6,6 +6,7 @@ import {
   parseModelChain,
   stripThinking,
   DEFAULT_MODEL_CHAIN,
+  DEFAULT_MODEL_CHAINS,
 } from "./llm";
 
 /** Ответ провайдера в формате OpenAI-совместимого API. */
@@ -51,13 +52,23 @@ describe("modelChain", () => {
   });
 
   it("незаданная цепочка — берётся цепочка по умолчанию", () => {
-    expect(modelChain("fast", {})).toEqual([...DEFAULT_MODEL_CHAIN]);
-    expect(modelChain("reason", { MODELS_REASON: "  " })).toEqual([...DEFAULT_MODEL_CHAIN]);
+    expect(modelChain("fast", {})).toEqual([...DEFAULT_MODEL_CHAINS.fast]);
+    expect(modelChain("reason", { MODELS_REASON: "  " })).toEqual([...DEFAULT_MODEL_CHAINS.reason]);
+  });
+
+  it("у каждого назначения своя цепочка по умолчанию", () => {
+    // Рассуждение должно отличаться от быстрого ответа: раньше все три
+    // назначения делили одну цепочку, и разница была только в промте.
+    expect(DEFAULT_MODEL_CHAINS.reason).not.toEqual(DEFAULT_MODEL_CHAINS.fast);
+    expect(DEFAULT_MODEL_CHAINS.navigator).toEqual(DEFAULT_MODEL_CHAINS.fast);
   });
 
   it("цепочка по умолчанию состоит из проверенных моделей", () => {
     expect(DEFAULT_MODEL_CHAIN).toContain("free/gpt-6-luna");
     expect(DEFAULT_MODEL_CHAIN.length).toBeGreaterThan(1);
+    for (const chain of Object.values(DEFAULT_MODEL_CHAINS)) {
+      expect(chain.length).toBeGreaterThan(1);
+    }
   });
 });
 
@@ -114,6 +125,29 @@ describe("chat", () => {
     expect(body.max_tokens).toBe(321);
     expect(body.stream).toBe(false);
     expect(body.messages[0].content).toBe("Какая игла?");
+  });
+
+  it("глубина размышления попадает в тело запроса", async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(OK_BODY));
+
+    await chat({ models: ["m1"], messages: MESSAGES, reasoningEffort: "high" });
+
+    const body = JSON.parse(String(vi.mocked(fetch).mock.calls[0][1]?.body)) as {
+      reasoning_effort?: string;
+    };
+    expect(body.reasoning_effort).toBe("high");
+  });
+
+  it("без глубины размышления параметр не отправляется", async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(OK_BODY));
+
+    await chat({ models: ["m1"], messages: MESSAGES });
+
+    const body = JSON.parse(String(vi.mocked(fetch).mock.calls[0][1]?.body)) as Record<
+      string,
+      unknown
+    >;
+    expect(body.reasoning_effort).toBeUndefined();
   });
 
   it("упавшая модель → следующая из цепочки", async () => {
