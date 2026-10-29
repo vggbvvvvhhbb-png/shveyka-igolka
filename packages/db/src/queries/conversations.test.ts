@@ -40,6 +40,8 @@ describe("диалоги в pglite", () => {
         role TEXT NOT NULL,
         content TEXT NOT NULL,
         context_slugs JSONB NOT NULL DEFAULT '[]'::jsonb,
+        mode TEXT,
+        sources JSONB NOT NULL DEFAULT '[]'::jsonb,
         created_at TIMESTAMPTZ DEFAULT NOW()
       )
     `);
@@ -170,5 +172,29 @@ describe("диалоги в pglite", () => {
 
     const messages = await listMessages(db, conversation.id);
     expect(messages[0].context_slugs).toEqual([]);
+  });
+
+  it("сохраняет режим работы и источники вместе с ответом", async () => {
+    const conversation = await createConversation(db);
+
+    await addMessage(db, conversation.id, "assistant", "Ответ", "id-ответа-с-режимом", [], {
+      mode: "search",
+      sources: [{ title: "Страница", url: "https://example.com/a", snippet: "выдержка" }],
+    });
+
+    const messages = await listMessages(db, conversation.id);
+    expect(messages[0].mode).toBe("search");
+    expect(messages[0].sources).toHaveLength(1);
+    expect(messages[0].sources[0].url).toBe("https://example.com/a");
+  });
+
+  it("у обычного ответа режим пустой, а источники — пустой список", async () => {
+    const conversation = await createConversation(db);
+
+    await addMessage(db, conversation.id, "assistant", "Ответ по каталогу");
+
+    const messages = await listMessages(db, conversation.id);
+    expect(messages[0].mode).toBeNull();
+    expect(messages[0].sources).toEqual([]);
   });
 });

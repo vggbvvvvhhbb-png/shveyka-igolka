@@ -32,6 +32,8 @@ describe("оценки ответов в pglite", () => {
         role TEXT NOT NULL,
         content TEXT NOT NULL,
         context_slugs JSONB NOT NULL DEFAULT '[]'::jsonb,
+        mode TEXT,
+        sources JSONB NOT NULL DEFAULT '[]'::jsonb,
         created_at TIMESTAMPTZ DEFAULT NOW()
       );
       CREATE TABLE message_feedback (
