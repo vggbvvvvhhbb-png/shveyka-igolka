@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { isUuid } from "@shveyka/core";
+import { isUuid, isWorkMode, type Source } from "@shveyka/core";
 import { getDbSingleton, queries } from "@shveyka/db";
-import { ChatWidget } from "@/components/ChatWidget";
+import { ChatWidget, type Message } from "@/components/ChatWidget";
 
 export const dynamic = "force-dynamic";
 
@@ -28,9 +28,7 @@ export default async function AssistantPage({
   const { q, question, c, ctx } = await searchParams;
 
   let conversationId: string | undefined;
-  let initialMessages:
-    | { role: "user" | "assistant"; content: string; id?: string; slugs?: string[] }[]
-    | undefined;
+  let initialMessages: Message[] | undefined;
 
   if (isUuid(c)) {
     const db = getDbSingleton();
@@ -44,6 +42,14 @@ export default async function AssistantPage({
         // на каталог снова стали кликабельными.
         id: row.role === "assistant" ? row.id : undefined,
         slugs: row.role === "assistant" ? row.context_slugs : undefined,
+        // Режим работы и источники сохранялись вместе с ответом: в открытом
+        // заново диалоге они остаются видны, как были при получении.
+        workMode: row.role === "assistant" && isWorkMode(row.mode) ? row.mode : undefined,
+        sources: row.role === "assistant" ? (row.sources as Source[]) : undefined,
+        // Вопросы для кнопок и записи каталога сохранялись рядом с ответом:
+        // в открытом заново диалоге они остаются, как были при получении.
+        followUps: row.role === "assistant" ? row.follow_ups : undefined,
+        related: row.role === "assistant" ? row.related : undefined,
       }));
     }
   }

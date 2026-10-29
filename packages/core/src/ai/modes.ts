@@ -13,12 +13,15 @@ const INSTRUCTION: Record<AnswerMode, string> = {
  *
  * Общий лимит 700 обрывал пошаговые ответы, поэтому у каждого режима своя
  * сумма, а режим без выбора получает обычный бюджет.
+ *
+ * Суммы подняты после замера: модель укладывалась в лимит с большим запасом,
+ * а ответы выходили скудными — не хватало места на разделы и детали.
  */
 const TOKENS: Record<AnswerMode | "default", number> = {
-  short: 400,
-  steps: 1400,
-  why: 900,
-  default: 1200,
+  short: 500,
+  steps: 1800,
+  why: 1600,
+  default: 2000,
 };
 
 export const isAnswerMode = (v: unknown): v is AnswerMode =>

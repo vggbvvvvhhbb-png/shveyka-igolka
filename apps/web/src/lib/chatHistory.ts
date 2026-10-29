@@ -1,5 +1,5 @@
 import { isUuid } from "@shveyka/core";
-import { queries, type DatabaseClient } from "@shveyka/db";
+import { queries, type DatabaseClient, type RelatedRow, type SourceRow } from "@shveyka/db";
 import { logFailure } from "@/lib/apiResponse";
 
 /**
@@ -33,6 +33,10 @@ export async function saveUserTurn(
  * contextSlugs — записи каталога, попавшие в контекст ответа. Они сохраняются
  * вместе с сообщением, чтобы в открытом заново диалоге ссылки на каталог
  * снова были кликабельными.
+ *
+ * meta — режим работы, источники из интернета, вопросы для кнопок и записи
+ * каталога. Сохраняются рядом с ответом, чтобы в открытом заново диалоге
+ * осталась пометка о режиме, список ссылок, кнопки и карточки каталога.
  */
 export async function saveAssistantTurn(
   db: DatabaseClient,
@@ -40,11 +44,25 @@ export async function saveAssistantTurn(
   conversationId: string,
   messageId: string,
   content: string,
-  contextSlugs: string[] = []
+  contextSlugs: string[] = [],
+  meta?: {
+    mode?: string;
+    sources?: SourceRow[];
+    followUps?: string[];
+    related?: RelatedRow[];
+  }
 ): Promise<void> {
   if (!content.trim()) return;
   try {
-    await queries.addMessage(db, conversationId, "assistant", content, messageId, contextSlugs);
+    await queries.addMessage(
+      db,
+      conversationId,
+      "assistant",
+      content,
+      messageId,
+      contextSlugs,
+      meta
+    );
   } catch (err) {
     logFailure("chat-history", requestId, err);
   }

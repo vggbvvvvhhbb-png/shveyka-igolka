@@ -4,12 +4,14 @@ import {
   buildSystemPrompt,
   cacheKey,
   collectContextSlugs,
+  collectRelatedLinks,
   createRequestId,
   groupContext,
   hasMeasurements,
   isCacheable,
   isValidatedRequest,
   looksTruncated,
+  parseAnswer,
   parseSSEPiece,
   prepareChat,
   resolveProviderName,
@@ -204,18 +206,26 @@ export async function POST(req: Request): Promise<Response> {
     // Мерки владельца возвращаются в блок данных: без них промт остался бы
     // без размеров пользователя, а ответ считался бы общим.
     const context = groupContext(prep.context, prep.measurements);
-    const systemPrompt = `${buildSystemPrompt(context)}\n\n${prep.rules}`;
+    // Режим ответа меняет форму ответа: короткий остаётся коротким,
+    // остальные получают разделы и вопросы для кнопок.
+    const systemPrompt = `${buildSystemPrompt(context, prep.mode)}\n\n${prep.rules}`;
 
     // Список slug из контекста — UI сделает кликабельными только ссылки на них.
     const allowedSlugs = buildContextSlugsHeader(prep.context);
     // Тот же список сохраняется вместе с ответом: в открытом заново диалоге
     // ссылки на каталог снова кликабельны.
     const contextSlugs = collectContextSlugs(prep.context);
+    // Записи каталога из контекста: интерфейс показывает их карточками под
+    // ответом, чтобы можно было сразу перейти к нужной записи.
+    const related = collectRelatedLinks(prep.context);
 
     const headers = {
       "Content-Type": "text/plain; charset=utf-8",
       "Cache-Control": "no-store",
       "X-Context-Slugs": allowedSlugs,
+      // Названия записей русские, а заголовок — байтовая строка: без
+      // кодирования в него они не помещаются.
+      "X-Context-Related": encodeURIComponent(JSON.stringify(related)),
       "X-Request-Id": requestId,
     };
 
@@ -273,7 +283,15 @@ export async function POST(req: Request): Promise<Response> {
 
         // Оборванный ответ не сохраняем в кэш: следующий посетитель получил бы
         // обрывок вместо целого ответа.
+        //
+        // В кэш идёт исходный текст вместе с блоком вопросов: клиент сам
+        // разбирает его на кнопки, и обрезанный ответ сохранил бы кнопки,
+        // которые не к чему привязать.
         if (cacheable && !truncated && full) answers.set(key, full);
+
+        // Блок вопросов убирается из текста и сохраняется отдельно: в
+        // открытом заново диалоге вопросы остаются кнопками под ответом.
+        const parsed = parseAnswer(full);
 
         // Ответ уходит в историю до закрытия потока: когда клиент увидел конец
         // ответа, сообщение уже лежит в базе и его можно оценить.
@@ -283,8 +301,9 @@ export async function POST(req: Request): Promise<Response> {
             requestId,
             conversationId,
             assistantMessageId,
-            full,
-            contextSlugs
+            parsed.text,
+            contextSlugs,
+            { followUps: parsed.followUps, related }
           );
         }
 

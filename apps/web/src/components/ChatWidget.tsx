@@ -1,15 +1,47 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
-import { parseLinkSegments, type AnswerMode } from "@shveyka/core";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import {
+  WORK_MODES,
+  WORK_MODE_HINTS,
+  WORK_MODE_LABELS,
+  parseAnswer,
+  parseRelatedLinks,
+  type AnswerMode,
+  type AssistantResponse,
+  type Source,
+  type WorkMode,
+} from "@shveyka/core";
 import { FeedbackButtons } from "@/components/FeedbackButtons";
+import { Markdown } from "@/components/Markdown";
+import { SourceList } from "@/components/SourceList";
 
 /**
  * id и slugs появляются у ответа ассистента, когда он сохранён в истории:
  * по id ответ можно оценить, slugs — записи каталога из его контекста.
+ *
+ * workMode, sources, steps и model — то, чем ответ отличается от обычного:
+ * режим работы, ссылки из интернета, ход работы и имя модели.
+ *
+ * followUps и related — вопросы для кнопок и записи каталога, попавшие в ответ.
+ * Они сохраняются вместе с ответом, поэтому в открытом заново диалоге кнопки
+ * и карточки остаются на месте.
  */
-type Message = { role: "user" | "assistant"; content: string; id?: string; slugs?: string[] };
+export type Message = {
+  role: "user" | "assistant";
+  content: string;
+  id?: string;
+  slugs?: string[];
+  workMode?: WorkMode;
+  sources?: Source[];
+  steps?: string[];
+  model?: string;
+  /** Вопросы для кнопок под ответом. */
+  followUps?: string[];
+  /** Записи каталога, попавшие в ответ. */
+  related?: { label: string; href: string }[];
+};
 
 const MAX_MESSAGES = 10;
 const MAX_INPUT = 1000;
@@ -22,27 +54,13 @@ const MODES: { value: AnswerMode | null; label: string }[] = [
   { value: "why", label: "Почему" },
 ];
 
-/**
- * Превращает ссылки вида [название](/fabrics/slug) в next/link.
- * Кликабельными становятся только ссылки на slug из allowedSlugs
- * (заголовок X-Context-Slugs ответа /api/chat). Остальной текст
- * выводится как есть (React экранирует его сам).
- */
-function renderContent(text: string, allowedSlugs: Set<string>): ReactNode[] {
-  return parseLinkSegments(text, allowedSlugs).map((segment, i) =>
-    segment.kind === "link" ? (
-      <Link
-        key={`link-${i}`}
-        href={segment.href}
-        className="underline underline-offset-2 hover:text-stone-600"
-      >
-        {segment.text}
-      </Link>
-    ) : (
-      <span key={`text-${i}`}>{segment.text}</span>
-    )
-  );
-}
+/** Что показывать, пока ответ в пути: у каждого режима своя формулировка. */
+const PENDING_TEXT: Record<WorkMode, string> = {
+  chat: "Думаю…",
+  search: "Ищу в интернете…",
+  reason: "Думаю…",
+  research: "Исследую…",
+};
 
 /**
  * Чат помощника.
@@ -77,6 +95,10 @@ export function ChatWidget({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [mode, setMode] = useState<AnswerMode | null>(null);
+  // Режим работы: каталог, поиск, рассуждение или ресёрч.
+  const [workMode, setWorkMode] = useState<WorkMode>("chat");
+  // Поле ввода: на него переходит фокус после нажатия вопроса под ответом.
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const sendMessage = useCallback(
     async (raw: string) => {
@@ -89,6 +111,85 @@ export function ChatWidget({
       setInput("");
       setLoading(true);
       setError(null);
+
+      // Режимы с интернетом отвечают не потоком, а готовым объектом:
+      // в нём есть источники, ход работы и имя модели.
+      if (workMode !== "chat") {
+        try {
+          const res = await fetch("/api/assistant", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              ...(conversationId ? { "X-Conversation-Id": conversationId } : {}),
+            },
+            body: JSON.stringify({
+              message: text,
+              mode: workMode,
+              ...(mode ? { style: mode } : {}),
+              ...(ctx ? { ctx } : {}),
+            }),
+          });
+
+          const data = (await res.json().catch(() => null)) as
+            | (AssistantResponse & { error?: string })
+            | { error?: string }
+            | null;
+
+          if (!res.ok || !data || "error" in data) {
+            throw new Error(
+              (data && "error" in data && data.error) ||
+                "Не удалось получить ответ, попробуйте позже"
+            );
+          }
+
+          const answer = data as AssistantResponse;
+
+          // Разрешённые slug этого ответа — только они кликабельны.
+          const allowed = new Set(
+            (res.headers.get("X-Context-Slugs") ?? "")
+              .split(",")
+              .map((s) => s.trim())
+              .filter(Boolean)
+          );
+          setAllowedSlugsByIndex((prev) => ({ ...prev, [history.length]: allowed }));
+
+          // Сервер сохраняет диалог и выдаёт его id: запоминаем и кладём в адрес,
+          // чтобы страницу можно было перезагрузить.
+          const savedConversationId = res.headers.get("X-Conversation-Id");
+          if (savedConversationId && savedConversationId !== conversationId) {
+            setConversationId(savedConversationId);
+            window.history.replaceState(null, "", `/assistant?c=${savedConversationId}`);
+          }
+
+          setMessages((prev) => {
+            const copy = [...prev];
+            const last = copy[copy.length - 1];
+            copy[copy.length - 1] = {
+              ...last,
+              content: answer.answer,
+              id: answer.messageId ?? undefined,
+              slugs: [...allowed],
+              workMode: answer.mode,
+              sources: answer.sources,
+              steps: answer.steps,
+              model: answer.model,
+              followUps: answer.followUps ?? [],
+              related: answer.related ?? [],
+            };
+            return copy;
+          });
+
+          if (answer.degraded) setError(answer.degraded);
+        } catch (err) {
+          const msg =
+            err instanceof Error ? err.message : "Не удалось получить ответ, попробуйте позже";
+          setError(msg);
+          setMessages((prev) => prev.slice(0, -1));
+        } finally {
+          setLoading(false);
+        }
+        return;
+      }
 
       try {
         const res = await fetch("/api/chat", {
@@ -120,6 +221,10 @@ export function ChatWidget({
         );
         setAllowedSlugsByIndex((prev) => ({ ...prev, [history.length]: allowed }));
 
+        // Записи каталога из контекста ответа: показываются карточками под
+        // ответом, чтобы можно было сразу перейти к нужной записи.
+        const related = parseRelatedLinks(res.headers.get("X-Context-Related"));
+
         // Сервер сохраняет диалог и выдаёт его id: запоминаем и кладём в адрес,
         // чтобы страницу можно было перезагрузить.
         const savedConversationId = res.headers.get("X-Conversation-Id");
@@ -143,16 +248,23 @@ export function ChatWidget({
           });
         }
 
-        if (savedMessageId) {
-          setMessages((prev) => {
-            const copy = [...prev];
-            const last = copy[copy.length - 1];
-            if (last?.role === "assistant") {
-              copy[copy.length - 1] = { ...last, id: savedMessageId, slugs: [...allowed] };
-            }
-            return copy;
-          });
-        }
+        // Блок вопросов вынимается из текста и становится кнопками: пока
+        // ответ шёл потоком, он уже был виден кнопками, а в переписке остаётся
+        // чистый текст и сами вопросы.
+        setMessages((prev) => {
+          const copy = [...prev];
+          const last = copy[copy.length - 1];
+          if (last?.role !== "assistant") return copy;
+          const parsed = parseAnswer(last.content);
+          copy[copy.length - 1] = {
+            ...last,
+            content: parsed.text,
+            followUps: parsed.followUps,
+            related,
+            ...(savedMessageId ? { id: savedMessageId, slugs: [...allowed] } : {}),
+          };
+          return copy;
+        });
       } catch (err) {
         const msg =
           err instanceof Error ? err.message : "Не удалось получить ответ, попробуйте позже";
@@ -162,7 +274,7 @@ export function ChatWidget({
         setLoading(false);
       }
     },
-    [messages, loading, conversationId, ctx, mode]
+    [messages, loading, conversationId, ctx, mode, workMode]
   );
 
   async function send(e: FormEvent<HTMLFormElement>) {
@@ -184,6 +296,17 @@ export function ChatWidget({
     if (error) setError(null);
   }
 
+  /**
+   * Вопрос из кнопки под ответом: подставляем его в поле ввода.
+   *
+   * Отправлять сразу не стоит: человек может поправить вопрос, а лимит
+   * запросов к режимам с интернетом общий на адрес.
+   */
+  function askFollowUp(question: string) {
+    setInput(question.slice(0, MAX_INPUT));
+    textareaRef.current?.focus();
+  }
+
   return (
     <div className="space-y-4">
       <div className="rounded-2xl border border-stone-200 bg-white p-4 min-h-[320px] space-y-3">
@@ -198,17 +321,97 @@ export function ChatWidget({
           const allowed = m.slugs
             ? new Set(m.slugs)
             : (allowedSlugsByIndex[i] ?? new Set<string>());
+          // Блок вопросов разбирается на лету: пока ответ идёт потоком,
+          // вопросы уже видны кнопками, а не текстом в конце ответа.
+          const parsed = m.role === "assistant" ? parseAnswer(m.content) : null;
+          const text = parsed ? parsed.text : m.content;
+          const followUps = m.followUps ?? parsed?.followUps ?? [];
+          // Пустой ответ помощника во время ожидания: показываем, что он думает.
+          const isPending = loading && m.role === "assistant" && m.content.length === 0;
           return (
             <div key={i} className="space-y-1">
               <div
                 className={
                   m.role === "user"
                     ? "ml-auto max-w-[85%] rounded-2xl bg-stone-900 px-4 py-2 text-white whitespace-pre-wrap"
-                    : "mr-auto max-w-[85%] rounded-2xl bg-stone-100 px-4 py-2 text-stone-800 whitespace-pre-wrap leading-relaxed"
+                    : "mr-auto max-w-[85%] rounded-2xl bg-stone-100 px-4 py-2 text-stone-800"
                 }
               >
-                {m.role === "assistant" ? renderContent(m.content, allowed) : m.content}
+                {m.role === "assistant" ? (
+                  isPending ? (
+                    <span className="animate-pulse text-stone-500">{PENDING_TEXT[workMode]}</span>
+                  ) : (
+                    <Markdown
+                      text={text}
+                      allowedSlugs={allowed}
+                      sourceCount={m.sources?.length ?? 0}
+                    />
+                  )
+                ) : (
+                  m.content
+                )}
               </div>
+
+              {m.role === "assistant" && (
+                <div className="mr-auto max-w-[85%] space-y-2">
+                  {m.workMode && (
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-stone-500">
+                      <span className="rounded-full bg-stone-100 px-2 py-0.5">
+                        Режим: {WORK_MODE_LABELS[m.workMode]}
+                      </span>
+                      {m.model && (
+                        <span className="rounded-full bg-stone-100 px-2 py-0.5">{m.model}</span>
+                      )}
+                    </div>
+                  )}
+
+                  {m.steps && m.steps.length > 0 && (
+                    <details className="text-sm">
+                      <summary className="cursor-pointer text-stone-500">Ход работы</summary>
+                      <ul className="mt-1 list-inside list-disc space-y-0.5 text-stone-600">
+                        {m.steps.map((step, index) => (
+                          <li key={index}>{step}</li>
+                        ))}
+                      </ul>
+                    </details>
+                  )}
+
+                  {m.sources && m.sources.length > 0 && <SourceList sources={m.sources} />}
+
+                  {m.related && m.related.length > 0 && (
+                    <div className="rounded-xl border border-stone-200 bg-white p-3">
+                      <p className="text-sm text-stone-500">Из каталога Швейки</p>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {m.related.map((item) => (
+                          <Link
+                            key={item.href}
+                            href={item.href}
+                            className="rounded-full bg-stone-100 px-3 py-1 text-sm text-stone-700 hover:bg-stone-200"
+                          >
+                            {item.label}
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {followUps.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {followUps.map((question) => (
+                        <button
+                          key={question}
+                          type="button"
+                          onClick={() => askFollowUp(question)}
+                          className="rounded-full border border-stone-300 bg-white px-3 py-1.5 text-left text-sm text-stone-700 transition-colors hover:border-stone-400 hover:bg-stone-50"
+                        >
+                          {question}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {m.role === "assistant" && m.id && (
                 <FeedbackButtons messageId={m.id} contextSlugs={m.slugs ?? []} />
               )}
@@ -224,6 +427,28 @@ export function ChatWidget({
       )}
 
       <form onSubmit={send} className="space-y-2">
+        {/* Режим работы выбирает, откуда берётся ответ: из каталога или из интернета. */}
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-sm text-stone-500">Режим</span>
+          {WORK_MODES.map((value) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => setWorkMode(value)}
+              className={[
+                "rounded-full px-3 py-1 text-sm transition-colors",
+                workMode === value
+                  ? "bg-stone-900 text-white"
+                  : "bg-stone-100 text-stone-700 hover:bg-stone-200",
+              ].join(" ")}
+            >
+              {WORK_MODE_LABELS[value]}
+            </button>
+          ))}
+        </div>
+
+        <p className="text-xs text-stone-500">{WORK_MODE_HINTS[workMode]}</p>
+
         {/* Режим ответа меняет форму ответа: коротко, по шагам или с объяснением. */}
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-sm text-stone-500">Ответ</span>
@@ -245,6 +470,7 @@ export function ChatWidget({
         </div>
 
         <textarea
+          ref={textareaRef}
           value={input}
           onChange={(e) => onInputChange(e.target.value)}
           onKeyDown={(e) => {
@@ -267,7 +493,7 @@ export function ChatWidget({
             disabled={loading || input.trim().length === 0}
             className="rounded-full bg-stone-900 px-5 py-2 text-white disabled:opacity-40 hover:bg-stone-700"
           >
-            {loading ? "Думаю…" : "Отправить"}
+            {loading ? PENDING_TEXT[workMode] : "Отправить"}
           </button>
         </div>
       </form>

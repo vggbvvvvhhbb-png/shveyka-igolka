@@ -4,7 +4,8 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./calculator/*": "./src/calculator/*.ts"
+    "./calculator/*": "./src/calculator/*.ts",
+    "./ai/*": "./src/ai/*.ts"
   },
   "scripts": {
     "lint": "eslint src/",

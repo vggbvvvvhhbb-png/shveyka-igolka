@@ -1,6 +1,6 @@
 import { asc, desc, eq } from "drizzle-orm";
 import type { DatabaseClient } from "../client";
-import { conversations, messages } from "../schema";
+import { conversations, messages, type RelatedRow, type SourceRow } from "../schema";
 import { withRetry } from "../utils/withRetry";
 
 export type Conversation = typeof conversations.$inferSelect;
@@ -67,6 +67,8 @@ export async function listConversations(db: DatabaseClient): Promise<Conversatio
  * id можно задать заранее: так клиент узнаёт id ответа до его сохранения.
  * contextSlugs — записи каталога из контекста ответа ассистента; по ним
  * открытый заново диалог снова показывает кликабельные ссылки на каталог.
+ * meta — режим работы, источники из интернета, вопросы для кнопок и записи
+ * каталога: они показываются под ответом и в открытом заново диалоге.
  */
 export async function addMessage(
   db: DatabaseClient,
@@ -74,7 +76,8 @@ export async function addMessage(
   role: MessageRole,
   content: string,
   id: string = crypto.randomUUID(),
-  contextSlugs: string[] = []
+  contextSlugs: string[] = [],
+  meta?: { mode?: string; sources?: SourceRow[]; followUps?: string[]; related?: RelatedRow[] }
 ): Promise<ConversationMessage | undefined> {
   return withRetry(async () => {
     const conversationRows = await db
@@ -87,7 +90,17 @@ export async function addMessage(
 
     const inserted = await db
       .insert(messages)
-      .values({ id, conversation_id: conversationId, role, content, context_slugs: contextSlugs })
+      .values({
+        id,
+        conversation_id: conversationId,
+        role,
+        content,
+        context_slugs: contextSlugs,
+        mode: meta?.mode ?? null,
+        sources: meta?.sources ?? [],
+        follow_ups: meta?.followUps ?? [],
+        related: meta?.related ?? [],
+      })
       .returning();
 
     const title = !conversation.title && role === "user" ? buildTitle(content) : conversation.title;

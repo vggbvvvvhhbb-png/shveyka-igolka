@@ -12,10 +12,10 @@ describe("режимы ответа", () => {
   });
 
   it("у каждого режима свой бюджет токенов", () => {
-    expect(maxTokensFor("short")).toBe(400);
-    expect(maxTokensFor("steps")).toBe(1400);
-    expect(maxTokensFor("why")).toBe(900);
-    expect(maxTokensFor(null)).toBe(1200);
+    expect(maxTokensFor("short")).toBe(500);
+    expect(maxTokensFor("steps")).toBe(1800);
+    expect(maxTokensFor("why")).toBe(1600);
+    expect(maxTokensFor(null)).toBe(2000);
   });
 
   it("режим без выбора не добавляет инструкцию", () => {
