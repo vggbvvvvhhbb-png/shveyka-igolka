@@ -50,10 +50,10 @@ describe("validateChatRequest", () => {
 describe("buildRequestBody (задача 2: лимит токенов)", () => {
   const messages = [{ role: "user" as const, content: "Привет" }];
 
-  it("max_tokens по умолчанию — общий бюджет 1200", () => {
+  it("max_tokens по умолчанию — общий бюджет 2000", () => {
     const body = buildRequestBody(messages, "системный промпт", "openrouter", "kimi-k2.6");
     expect(body.max_tokens).toBe(MAX_TOKENS);
-    expect(MAX_TOKENS).toBe(1200);
+    expect(MAX_TOKENS).toBe(2000);
   });
 
   it("бюджет режима перекрывает общий", () => {
@@ -63,7 +63,7 @@ describe("buildRequestBody (задача 2: лимит токенов)", () => {
 
   it("max_tokens присутствует и для Anthropic", () => {
     const body = buildRequestBody(messages, "системный промпт", "anthropic", "claude");
-    expect(body.max_tokens).toBe(1200);
+    expect(body.max_tokens).toBe(2000);
     expect(body.system).toBe("системный промпт");
   });
 

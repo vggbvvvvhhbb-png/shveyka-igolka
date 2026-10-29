@@ -5,7 +5,7 @@
  * Теперь свой бюджет у каждого режима ответа (см. modes.ts), а это значение
  * используется, когда режим не выбран.
  */
-export const MAX_TOKENS = 1200;
+export const MAX_TOKENS = 2000;
 
 /** Максимальная длина заголовка X-Context-Slugs. */
 export const MAX_CONTEXT_SLUGS_LENGTH = 2000;

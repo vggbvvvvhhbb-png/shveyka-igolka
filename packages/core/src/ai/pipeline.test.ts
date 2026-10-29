@@ -23,6 +23,7 @@ vi.mock("./navigator", async (importOriginal) => {
 
 import { buildQuery, runPipeline } from "./pipeline";
 import { ExaError } from "./exa";
+import { SKILLS } from "./skills";
 import type { Source } from "./source";
 
 /** Источник для выдачи Exa. */
@@ -62,27 +63,27 @@ describe("runPipeline", () => {
     });
   });
 
-  it("режим «Поиск» спрашивает интернет один раз и отдаёт источники", async () => {
+  it("режим «Поиск» спрашивает интернет по плану и отдаёт источники", async () => {
     const result = await runPipeline(
       { mode: "search", question: "шить трикотаж", style: null, catalog: "Ткани: лён" },
       { models: MODELS }
     );
 
-    expect(mocks.exaSearch).toHaveBeenCalledTimes(1);
+    expect(mocks.exaSearch).toHaveBeenCalledTimes(2);
     expect(result.sources).toHaveLength(2);
     expect(result.answer).toBe("Ответ.");
     expect(result.model).toBe("fast-1");
     expect(result.degraded).toBeNull();
-    expect(result.steps).toContain("Ищу в интернете");
+    expect(result.steps).toContain("Ищу в интернете: 2");
   });
 
-  it("режим «Поиск» не зовёт планировщик", async () => {
+  it("режим «Поиск» спрашивает планировщик, чтобы запросы были точнее", async () => {
     await runPipeline(
       { mode: "search", question: "шить трикотаж", style: null, catalog: "" },
       { models: MODELS }
     );
 
-    expect(mocks.navigate).not.toHaveBeenCalled();
+    expect(mocks.navigate).toHaveBeenCalledTimes(1);
   });
 
   it("режим «Рассуждение» без интернета не ищет в нём", async () => {
@@ -166,5 +167,47 @@ describe("runPipeline", () => {
     const messages = mocks.chat.mock.calls[0][0].messages as { role: string; content: string }[];
     const system = messages.find((m) => m.role === "system")?.content ?? "";
     expect(system).toContain("Режим «Коротко»");
+  });
+
+  it("бюджет токенов берётся из навыка, а «Коротко» урезается", async () => {
+    await runPipeline(
+      { mode: "research", question: "сравни ткани", style: null, catalog: "" },
+      { models: MODELS }
+    );
+    expect(mocks.chat.mock.calls[0][0].maxTokens).toBe(SKILLS.research.maxTokens);
+
+    vi.clearAllMocks();
+    mocks.chat.mockResolvedValue({ text: "Ответ.", model: "fast-1" });
+    await runPipeline(
+      { mode: "search", question: "шить трикотаж", style: "short", catalog: "" },
+      { models: MODELS }
+    );
+    expect(mocks.chat.mock.calls[0][0].maxTokens).toBe(600);
+  });
+
+  it("текст ответа приводится к читаемому виду", async () => {
+    mocks.chat.mockResolvedValue({ text: "не перегревают ребёнка .", model: "fast-1" });
+
+    const result = await runPipeline(
+      { mode: "search", question: "шить трикотаж", style: null, catalog: "" },
+      { models: MODELS }
+    );
+
+    expect(result.answer).toBe("не перегревают ребёнка.");
+  });
+
+  it("блок «Что спросить дальше» выносится из ответа отдельными вопросами", async () => {
+    mocks.chat.mockResolvedValue({
+      text: "Ответ.\n\nЧто спросить дальше:\n- Первый вопрос?\n- Второй вопрос?",
+      model: "fast-1",
+    });
+
+    const result = await runPipeline(
+      { mode: "search", question: "шить трикотаж", style: null, catalog: "" },
+      { models: MODELS }
+    );
+
+    expect(result.answer).toBe("Ответ.");
+    expect(result.followUps).toEqual(["Первый вопрос?", "Второй вопрос?"]);
   });
 });

@@ -51,6 +51,13 @@ export const AssistantResponseSchema = z.object({
   model: z.string(),
   /** Что не удалось, если не удалось. */
   degraded: z.string().nullable(),
+  /** Вопросы для кнопок под ответом. */
+  followUps: z.array(z.string()).max(4).default([]),
+  /** Записи каталога, попавшие в ответ: показываются карточками. */
+  related: z
+    .array(z.object({ label: z.string(), href: z.string() }))
+    .max(8)
+    .default([]),
   /** id диалога, если ответ сохранён в истории. */
   conversationId: z.string().nullable(),
   /** id сообщения, если ответ сохранён в истории. */

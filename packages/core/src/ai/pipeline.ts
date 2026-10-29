@@ -9,7 +9,8 @@
 import { chat, modelChain, type ChatTurn, type ModelChain } from "./llm";
 import { dedupeSources, exaSearch, ExaError } from "./exa";
 import { navigate } from "./navigator";
-import { buildSkillMessages, SKILLS, type SkillName } from "./skills";
+import { buildSkillMessages, budgetFor, SKILLS, type SkillName } from "./skills";
+import { countCitations, parseAnswer } from "./answerFormat";
 import type { Source } from "./source";
 import type { AnswerMode } from "./modes";
 
@@ -52,6 +53,8 @@ export type PipelineResult = {
   model: string;
   /** Что не удалось, если не удалось. */
   degraded: string | null;
+  /** Вопросы для кнопок под ответом. */
+  followUps: string[];
 };
 
 /**
@@ -119,13 +122,17 @@ export async function runPipeline(
   const reasonChain = models.reason ?? modelChain("reason");
   const navigatorChain = models.navigator ?? modelChain("navigator");
 
-  let queries: string[] = [input.question];
   let sources: Source[] = [];
   let degraded: string | null = null;
 
   if (input.mode === "search") {
-    steps.push("Ищу в интернете");
-    const found = await collectSources(queries, skill.maxSources, input.question);
+    steps.push("Планирую запросы");
+    const plan = await navigate(input.question, {
+      models: navigatorChain,
+      maxQueries: skill.maxQueries,
+    });
+    steps.push(`Ищу в интернете: ${plan.queries.length}`);
+    const found = await collectSources(plan.queries, skill.maxSources, input.question);
     sources = found.sources;
     degraded = found.degraded;
   }
@@ -137,7 +144,7 @@ export async function runPipeline(
       maxQueries: skill.maxQueries,
     });
     if (plan.needWeb) {
-      steps.push("Сверяю с интернетом");
+      steps.push(`Сверяю с интернетом: ${plan.queries.length}`);
       const found = await collectSources(plan.queries, skill.maxSources, input.question);
       sources = found.sources;
       degraded = found.degraded;
@@ -169,14 +176,23 @@ export async function runPipeline(
     models: chain,
     messages,
     temperature: skill.modelKind === "fast" ? 0.3 : 0.2,
-    maxTokens: skill.modelKind === "fast" ? 1200 : 2400,
+    maxTokens: budgetFor(skill, input.style),
   });
 
+  // Текст приводится к читаемому виду, а блок вопросов выносится отдельно:
+  // в интерфейсе он показан кнопками, а не текстом в конце ответа.
+  const cleaned = parseAnswer(result.text);
+
+  if (sources.length > 0 && countCitations(cleaned.text) === 0) {
+    console.warn("[pipeline] ответ без ссылок на источники", { mode: input.mode });
+  }
+
   return {
-    answer: result.text,
+    answer: cleaned.text,
     sources,
     steps,
     model: result.model,
     degraded,
+    followUps: cleaned.followUps,
   };
 }

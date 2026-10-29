@@ -15,8 +15,37 @@ const INSTRUCTIONS_BEFORE_MEASUREMENTS = `Ты — консультант по �
 2. ${SOFT_REFUSAL_RULE}
 3. Не придумывай настройки машины (игла, стежок, натяжение) для тканей, которых нет в блоке.
 4. Ссылайся на записи в формате markdown: [название](/fabrics/slug), [название](/seams/slug), [название](/projects/slug).
-5. Отвечай по-русски. Обычно 3–8 предложений. Для пошаговых инструкций используй нумерованный список.
+5. Отвечай по-русски. Для пошаговых инструкций используй нумерованный список.
 6. Если вопрос не про шитьё, вежливо откажись и предложи вопрос по теме каталога.`;
+
+/** Правила оформления: интерфейс разбирает разметку ответа. */
+const FORMAT_RULES_TEXT = `Оформляй ответ разметкой — интерфейс её разбирает:
+- короткие абзацы и списки вместо сплошного текста;
+- заголовки разделов: ## Заголовок;
+- выделение главного: **важное**;
+- не начинай с вступлений вроде «Конечно!» и «Давайте разберёмся».`;
+
+/** Структура обычного ответа по каталогу. */
+const CATALOG_STRUCTURE_TEXT = `Структура ответа:
+- ## Короткий ответ — 2–4 предложения: ответ по сути;
+- ## Что делать — 2–4 конкретных шага, что настроить или сделать;
+- ## Нюансы — 2–4 пункта, на что обратить внимание.
+Называй конкретику из каталога: ткань и её плотность, номер иглы, нить, строчку, лапку.`;
+
+/** Структура ответа в режиме «Почему». */
+const CATALOG_WHY_STRUCTURE_TEXT = `Структура ответа:
+- ## Ответ — 2–3 предложения: что рекомендуется;
+- ## Почему так — 3–5 пунктов: почему именно эти настройки и эта ткань;
+- ## Что делать — 2–3 конкретных шага.
+Называй конкретику из каталога: ткань и её плотность, номер иглы, нить, строчку, лапку.`;
+
+/** Блок вопросов в конце ответа — их интерфейс показывает кнопками. */
+const FOLLOW_UP_RULES_TEXT = `В самом конце ответа добавь блок с вопросами — их покажут кнопками:
+Что спросить дальше:
+- вопрос одним предложением
+- ещё один вопрос
+- третий вопрос
+Вопросы — короткие, по теме ответа, от лица человека, который спрашивает.`;
 
 const EMPTY_CONTEXT: AssistantContext = { fabrics: [], seams: [], projects: [] };
 
@@ -25,6 +54,12 @@ describe("buildSystemPrompt", () => {
     const prompt = buildSystemPrompt(EMPTY_CONTEXT);
 
     expect(prompt).toBe(`${INSTRUCTIONS_BEFORE_MEASUREMENTS}
+
+${FORMAT_RULES_TEXT}
+
+${CATALOG_STRUCTURE_TEXT}
+
+${FOLLOW_UP_RULES_TEXT}
 
 ## Доступные данные
 Подходящих записей не найдено. Блок данных пуст.`);
@@ -118,5 +153,36 @@ describe("buildSystemPrompt", () => {
 
   it("жёсткий отказ больше не упоминается", () => {
     expect(buildSystemPrompt(EMPTY_CONTEXT)).not.toContain("В каталоге Швейки этого нет");
+  });
+
+  it("обычный ответ состоит из разделов и вопросов для кнопок", () => {
+    const prompt = buildSystemPrompt(EMPTY_CONTEXT);
+
+    expect(prompt).toContain(CATALOG_STRUCTURE_TEXT);
+    expect(prompt).toContain(FOLLOW_UP_RULES_TEXT);
+  });
+
+  it("в режиме «Коротко» нет ни разделов, ни вопросов", () => {
+    const prompt = buildSystemPrompt(EMPTY_CONTEXT, "short");
+
+    expect(prompt).not.toContain(CATALOG_STRUCTURE_TEXT);
+    expect(prompt).not.toContain(FOLLOW_UP_RULES_TEXT);
+    expect(prompt).not.toContain("## Короткий ответ");
+  });
+
+  it("в режиме «Почему» своя структура и вопросы остаются", () => {
+    const prompt = buildSystemPrompt(EMPTY_CONTEXT, "why");
+
+    expect(prompt).toContain(CATALOG_WHY_STRUCTURE_TEXT);
+    expect(prompt).not.toContain(CATALOG_STRUCTURE_TEXT);
+    expect(prompt).toContain(FOLLOW_UP_RULES_TEXT);
+  });
+
+  it("в режиме «По шагам» разделов нет, вопросы остаются", () => {
+    const prompt = buildSystemPrompt(EMPTY_CONTEXT, "steps");
+
+    expect(prompt).not.toContain(CATALOG_STRUCTURE_TEXT);
+    expect(prompt).not.toContain(CATALOG_WHY_STRUCTURE_TEXT);
+    expect(prompt).toContain(FOLLOW_UP_RULES_TEXT);
   });
 });

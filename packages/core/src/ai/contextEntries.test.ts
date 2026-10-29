@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
   buildContextSlugsHeader,
+  collectRelatedLinks,
   flattenContext,
   groupContext,
   measurementsOf,
+  parseRelatedLinks,
 } from "./contextEntries";
 import type { AssistantContext } from "./contextSchema";
 
@@ -117,5 +119,41 @@ describe("buildContextSlugsHeader", () => {
     const header = buildContextSlugsHeader(many, 2000);
     expect(header.length).toBeLessThanOrEqual(2000);
     expect(header.split(",").length).toBeGreaterThan(100);
+  });
+});
+
+describe("карточки каталога", () => {
+  it("собирает подпись и адрес страницы", () => {
+    const links = collectRelatedLinks(flattenContext(context));
+
+    expect(links[0]).toEqual({ label: "Джинса", href: "/fabrics/denim" });
+    expect(links.map((l) => l.href)).toContain("/seams/plain-seam");
+  });
+
+  it("заголовок разбирается обратно в карточки", () => {
+    const links = collectRelatedLinks(flattenContext(context));
+    expect(parseRelatedLinks(JSON.stringify(links))).toEqual(links);
+  });
+
+  it("экранированный заголовок с русскими названиями разбирается", () => {
+    const links = collectRelatedLinks(flattenContext(context));
+    const header = encodeURIComponent(JSON.stringify(links));
+
+    // Заголовок должен остаться байтовой строкой: иначе сервер его не примет.
+    const isAscii = [...header].every((char) => char.charCodeAt(0) < 128);
+    expect(isAscii).toBe(true);
+    expect(parseRelatedLinks(header)).toEqual(links);
+  });
+
+  it("битый заголовок не ломает ответ", () => {
+    expect(parseRelatedLinks(null)).toEqual([]);
+    expect(parseRelatedLinks("")).toEqual([]);
+    expect(parseRelatedLinks("не json")).toEqual([]);
+    expect(parseRelatedLinks('{"label":"Джинса"}')).toEqual([]);
+  });
+
+  it("внешние адреса карточками не становятся", () => {
+    const raw = JSON.stringify([{ label: "Чужой сайт", href: "https://example.com" }]);
+    expect(parseRelatedLinks(raw)).toEqual([]);
   });
 });
