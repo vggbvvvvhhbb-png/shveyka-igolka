@@ -46,6 +46,26 @@ function errorResponse(status: number, message: string): Response {
   });
 }
 
+/** Ответ /api/assistant: JSON с ответом, источниками и ходом работы. */
+function assistantResponse(overrides: Record<string, unknown> = {}): Response {
+  return new Response(
+    JSON.stringify({
+      answer: "Ответ по интернету.",
+      mode: "search",
+      sources: [
+        { title: "Страница о трикотаже", url: "https://example.com/tricot", snippet: "выдержка" },
+      ],
+      steps: ["Ищу в интернете", "Собираю ответ"],
+      model: "free/gpt-6-luna",
+      degraded: null,
+      conversationId: null,
+      messageId: null,
+      ...overrides,
+    }),
+    { status: 200, headers: { "Content-Type": "application/json" } }
+  );
+}
+
 function getInput(): HTMLTextAreaElement {
   return screen.getByRole("textbox") as HTMLTextAreaElement;
 }
@@ -209,5 +229,96 @@ describe("ChatWidget", () => {
     expect(screen.getByRole("link", { name: "Джинса" })).toHaveAttribute("href", "/fabrics/denim");
     expect(screen.queryByRole("link", { name: "Шёлк" })).not.toBeInTheDocument();
     expect(screen.getByText(/Шёлк/)).toBeInTheDocument();
+  });
+
+  it("режим «Каталог» по умолчанию идёт в /api/chat", async () => {
+    vi.mocked(fetch).mockResolvedValue(streamingResponse("Готово."));
+
+    render(<ChatWidget />);
+    typeQuestion("Что взять?");
+    fireEvent.click(screen.getByRole("button", { name: "Отправить" }));
+
+    await waitFor(() => {
+      expect(fetch).toHaveBeenCalledTimes(1);
+    });
+    expect(vi.mocked(fetch).mock.calls[0][0]).toBe("/api/chat");
+  });
+
+  it("режим «Поиск» идёт в /api/assistant и показывает источники", async () => {
+    vi.mocked(fetch).mockResolvedValue(assistantResponse());
+
+    render(<ChatWidget />);
+    fireEvent.click(screen.getByRole("button", { name: "Поиск" }));
+    typeQuestion("как шить трикотаж");
+    fireEvent.click(screen.getByRole("button", { name: "Отправить" }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Ответ по интернету/)).toBeInTheDocument();
+    });
+
+    expect(vi.mocked(fetch).mock.calls[0][0]).toBe("/api/assistant");
+    const body = JSON.parse(String(vi.mocked(fetch).mock.calls[0][1]?.body)) as {
+      message: string;
+      mode: string;
+    };
+    expect(body.message).toBe("как шить трикотаж");
+    expect(body.mode).toBe("search");
+
+    const source = screen.getByRole("link", { name: /Страница о трикотаже/ });
+    expect(source).toHaveAttribute("href", "https://example.com/tricot");
+  });
+
+  it("режим «Поиск» показывает ход работы и модель", async () => {
+    vi.mocked(fetch).mockResolvedValue(assistantResponse());
+
+    render(<ChatWidget />);
+    fireEvent.click(screen.getByRole("button", { name: "Поиск" }));
+    typeQuestion("как шить трикотаж");
+    fireEvent.click(screen.getByRole("button", { name: "Отправить" }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Ответ по интернету/)).toBeInTheDocument();
+    });
+
+    expect(screen.getByText("Ход работы")).toBeInTheDocument();
+    expect(screen.getByText("Ищу в интернете")).toBeInTheDocument();
+    expect(screen.getByText("free/gpt-6-luna")).toBeInTheDocument();
+  });
+
+  it("ошибка режима «Поиск» показывается как текст", async () => {
+    vi.mocked(fetch).mockResolvedValue(errorResponse(500, "Провайдер не отвечает"));
+
+    render(<ChatWidget />);
+    fireEvent.click(screen.getByRole("button", { name: "Рассуждение" }));
+    typeQuestion("какая игла");
+    fireEvent.click(screen.getByRole("button", { name: "Отправить" }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("alert")).toHaveTextContent("Провайдер не отвечает");
+    });
+  });
+
+  it("в открытом диалоге остаются видимыми режим и источники", () => {
+    render(
+      <ChatWidget
+        conversationId="11111111-1111-1111-1111-111111111111"
+        initialMessages={[
+          { role: "user", content: "как шить трикотаж" },
+          {
+            role: "assistant",
+            content: "Ответ по интернету.",
+            workMode: "search",
+            sources: [
+              { title: "Страница о трикотаже", url: "https://example.com/tricot", snippet: "" },
+            ],
+            steps: ["Ищу в интернете"],
+            model: "free/gpt-6-luna",
+          },
+        ]}
+      />
+    );
+
+    expect(screen.getByText("Режим: Поиск")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Страница о трикотаже/ })).toBeInTheDocument();
   });
 });
