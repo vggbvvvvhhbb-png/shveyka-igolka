@@ -1,5 +1,5 @@
 import { isUuid } from "@shveyka/core";
-import { queries, type DatabaseClient, type SourceRow } from "@shveyka/db";
+import { queries, type DatabaseClient, type RelatedRow, type SourceRow } from "@shveyka/db";
 import { logFailure } from "@/lib/apiResponse";
 
 /**
@@ -34,8 +34,9 @@ export async function saveUserTurn(
  * вместе с сообщением, чтобы в открытом заново диалоге ссылки на каталог
  * снова были кликабельными.
  *
- * meta — режим работы и источники из интернета. Сохраняются рядом с ответом,
- * чтобы в открытом заново диалоге осталась пометка о режиме и список ссылок.
+ * meta — режим работы, источники из интернета, вопросы для кнопок и записи
+ * каталога. Сохраняются рядом с ответом, чтобы в открытом заново диалоге
+ * осталась пометка о режиме, список ссылок, кнопки и карточки каталога.
  */
 export async function saveAssistantTurn(
   db: DatabaseClient,
@@ -44,7 +45,12 @@ export async function saveAssistantTurn(
   messageId: string,
   content: string,
   contextSlugs: string[] = [],
-  meta?: { mode?: string; sources?: SourceRow[] }
+  meta?: {
+    mode?: string;
+    sources?: SourceRow[];
+    followUps?: string[];
+    related?: RelatedRow[];
+  }
 ): Promise<void> {
   if (!content.trim()) return;
   try {

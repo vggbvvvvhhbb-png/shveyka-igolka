@@ -1,18 +1,20 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import {
-  parseLinkSegments,
   WORK_MODES,
   WORK_MODE_HINTS,
   WORK_MODE_LABELS,
+  parseAnswer,
+  parseRelatedLinks,
   type AnswerMode,
   type AssistantResponse,
   type Source,
   type WorkMode,
 } from "@shveyka/core";
 import { FeedbackButtons } from "@/components/FeedbackButtons";
+import { Markdown } from "@/components/Markdown";
 import { SourceList } from "@/components/SourceList";
 
 /**
@@ -21,6 +23,10 @@ import { SourceList } from "@/components/SourceList";
  *
  * workMode, sources, steps и model — то, чем ответ отличается от обычного:
  * режим работы, ссылки из интернета, ход работы и имя модели.
+ *
+ * followUps и related — вопросы для кнопок и записи каталога, попавшие в ответ.
+ * Они сохраняются вместе с ответом, поэтому в открытом заново диалоге кнопки
+ * и карточки остаются на месте.
  */
 export type Message = {
   role: "user" | "assistant";
@@ -31,6 +37,10 @@ export type Message = {
   sources?: Source[];
   steps?: string[];
   model?: string;
+  /** Вопросы для кнопок под ответом. */
+  followUps?: string[];
+  /** Записи каталога, попавшие в ответ. */
+  related?: { label: string; href: string }[];
 };
 
 const MAX_MESSAGES = 10;
@@ -51,28 +61,6 @@ const PENDING_TEXT: Record<WorkMode, string> = {
   reason: "Думаю…",
   research: "Исследую…",
 };
-
-/**
- * Превращает ссылки вида [название](/fabrics/slug) в next/link.
- * Кликабельными становятся только ссылки на slug из allowedSlugs
- * (заголовок X-Context-Slugs ответа /api/chat). Остальной текст
- * выводится как есть (React экранирует его сам).
- */
-function renderContent(text: string, allowedSlugs: Set<string>): ReactNode[] {
-  return parseLinkSegments(text, allowedSlugs).map((segment, i) =>
-    segment.kind === "link" ? (
-      <Link
-        key={`link-${i}`}
-        href={segment.href}
-        className="underline underline-offset-2 hover:text-stone-600"
-      >
-        {segment.text}
-      </Link>
-    ) : (
-      <span key={`text-${i}`}>{segment.text}</span>
-    )
-  );
-}
 
 /**
  * Чат помощника.
@@ -109,6 +97,8 @@ export function ChatWidget({
   const [mode, setMode] = useState<AnswerMode | null>(null);
   // Режим работы: каталог, поиск, рассуждение или ресёрч.
   const [workMode, setWorkMode] = useState<WorkMode>("chat");
+  // Поле ввода: на него переходит фокус после нажатия вопроса под ответом.
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const sendMessage = useCallback(
     async (raw: string) => {
@@ -183,6 +173,8 @@ export function ChatWidget({
               sources: answer.sources,
               steps: answer.steps,
               model: answer.model,
+              followUps: answer.followUps ?? [],
+              related: answer.related ?? [],
             };
             return copy;
           });
@@ -229,6 +221,10 @@ export function ChatWidget({
         );
         setAllowedSlugsByIndex((prev) => ({ ...prev, [history.length]: allowed }));
 
+        // Записи каталога из контекста ответа: показываются карточками под
+        // ответом, чтобы можно было сразу перейти к нужной записи.
+        const related = parseRelatedLinks(res.headers.get("X-Context-Related"));
+
         // Сервер сохраняет диалог и выдаёт его id: запоминаем и кладём в адрес,
         // чтобы страницу можно было перезагрузить.
         const savedConversationId = res.headers.get("X-Conversation-Id");
@@ -252,16 +248,23 @@ export function ChatWidget({
           });
         }
 
-        if (savedMessageId) {
-          setMessages((prev) => {
-            const copy = [...prev];
-            const last = copy[copy.length - 1];
-            if (last?.role === "assistant") {
-              copy[copy.length - 1] = { ...last, id: savedMessageId, slugs: [...allowed] };
-            }
-            return copy;
-          });
-        }
+        // Блок вопросов вынимается из текста и становится кнопками: пока
+        // ответ шёл потоком, он уже был виден кнопками, а в переписке остаётся
+        // чистый текст и сами вопросы.
+        setMessages((prev) => {
+          const copy = [...prev];
+          const last = copy[copy.length - 1];
+          if (last?.role !== "assistant") return copy;
+          const parsed = parseAnswer(last.content);
+          copy[copy.length - 1] = {
+            ...last,
+            content: parsed.text,
+            followUps: parsed.followUps,
+            related,
+            ...(savedMessageId ? { id: savedMessageId, slugs: [...allowed] } : {}),
+          };
+          return copy;
+        });
       } catch (err) {
         const msg =
           err instanceof Error ? err.message : "Не удалось получить ответ, попробуйте позже";
@@ -293,6 +296,17 @@ export function ChatWidget({
     if (error) setError(null);
   }
 
+  /**
+   * Вопрос из кнопки под ответом: подставляем его в поле ввода.
+   *
+   * Отправлять сразу не стоит: человек может поправить вопрос, а лимит
+   * запросов к режимам с интернетом общий на адрес.
+   */
+  function askFollowUp(question: string) {
+    setInput(question.slice(0, MAX_INPUT));
+    textareaRef.current?.focus();
+  }
+
   return (
     <div className="space-y-4">
       <div className="rounded-2xl border border-stone-200 bg-white p-4 min-h-[320px] space-y-3">
@@ -307,16 +321,35 @@ export function ChatWidget({
           const allowed = m.slugs
             ? new Set(m.slugs)
             : (allowedSlugsByIndex[i] ?? new Set<string>());
+          // Блок вопросов разбирается на лету: пока ответ идёт потоком,
+          // вопросы уже видны кнопками, а не текстом в конце ответа.
+          const parsed = m.role === "assistant" ? parseAnswer(m.content) : null;
+          const text = parsed ? parsed.text : m.content;
+          const followUps = m.followUps ?? parsed?.followUps ?? [];
+          // Пустой ответ помощника во время ожидания: показываем, что он думает.
+          const isPending = loading && m.role === "assistant" && m.content.length === 0;
           return (
             <div key={i} className="space-y-1">
               <div
                 className={
                   m.role === "user"
                     ? "ml-auto max-w-[85%] rounded-2xl bg-stone-900 px-4 py-2 text-white whitespace-pre-wrap"
-                    : "mr-auto max-w-[85%] rounded-2xl bg-stone-100 px-4 py-2 text-stone-800 whitespace-pre-wrap leading-relaxed"
+                    : "mr-auto max-w-[85%] rounded-2xl bg-stone-100 px-4 py-2 text-stone-800"
                 }
               >
-                {m.role === "assistant" ? renderContent(m.content, allowed) : m.content}
+                {m.role === "assistant" ? (
+                  isPending ? (
+                    <span className="animate-pulse text-stone-500">{PENDING_TEXT[workMode]}</span>
+                  ) : (
+                    <Markdown
+                      text={text}
+                      allowedSlugs={allowed}
+                      sourceCount={m.sources?.length ?? 0}
+                    />
+                  )
+                ) : (
+                  m.content
+                )}
               </div>
 
               {m.role === "assistant" && (
@@ -344,6 +377,38 @@ export function ChatWidget({
                   )}
 
                   {m.sources && m.sources.length > 0 && <SourceList sources={m.sources} />}
+
+                  {m.related && m.related.length > 0 && (
+                    <div className="rounded-xl border border-stone-200 bg-white p-3">
+                      <p className="text-sm text-stone-500">Из каталога Швейки</p>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {m.related.map((item) => (
+                          <Link
+                            key={item.href}
+                            href={item.href}
+                            className="rounded-full bg-stone-100 px-3 py-1 text-sm text-stone-700 hover:bg-stone-200"
+                          >
+                            {item.label}
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {followUps.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {followUps.map((question) => (
+                        <button
+                          key={question}
+                          type="button"
+                          onClick={() => askFollowUp(question)}
+                          className="rounded-full border border-stone-300 bg-white px-3 py-1.5 text-left text-sm text-stone-700 transition-colors hover:border-stone-400 hover:bg-stone-50"
+                        >
+                          {question}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -405,6 +470,7 @@ export function ChatWidget({
         </div>
 
         <textarea
+          ref={textareaRef}
           value={input}
           onChange={(e) => onInputChange(e.target.value)}
           onKeyDown={(e) => {

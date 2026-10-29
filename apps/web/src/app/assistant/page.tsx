@@ -46,6 +46,10 @@ export default async function AssistantPage({
         // заново диалоге они остаются видны, как были при получении.
         workMode: row.role === "assistant" && isWorkMode(row.mode) ? row.mode : undefined,
         sources: row.role === "assistant" ? (row.sources as Source[]) : undefined,
+        // Вопросы для кнопок и записи каталога сохранялись рядом с ответом:
+        // в открытом заново диалоге они остаются, как были при получении.
+        followUps: row.role === "assistant" ? row.follow_ups : undefined,
+        related: row.role === "assistant" ? row.related : undefined,
       }));
     }
   }

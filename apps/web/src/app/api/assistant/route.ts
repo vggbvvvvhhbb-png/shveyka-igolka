@@ -4,6 +4,7 @@ import {
   buildContextSlugsHeader,
   buildFallbackBlock,
   collectContextSlugs,
+  collectRelatedLinks,
   createRequestId,
   groupContext,
   isUuid,
@@ -174,7 +175,14 @@ export async function POST(req: Request): Promise<Response> {
         assistantMessageId,
         result.answer,
         collectContextSlugs(prep.context),
-        { mode, sources: result.sources }
+        {
+          mode,
+          sources: result.sources,
+          // Вопросы и карточки каталога сохраняются вместе с ответом: в
+          // открытом заново диалоге кнопки и карточки остаются на месте.
+          followUps: result.followUps,
+          related: collectRelatedLinks(prep.context),
+        }
       );
     }
 
@@ -186,6 +194,10 @@ export async function POST(req: Request): Promise<Response> {
         steps: result.steps,
         model: result.model,
         degraded: result.degraded,
+        followUps: result.followUps,
+        // Записи каталога, попавшие в ответ: интерфейс показывает их
+        // карточками, чтобы можно было сразу перейти к записи.
+        related: collectRelatedLinks(prep.context),
         conversationId: savedId,
         messageId: assistantMessageId,
       },
