@@ -17,6 +17,7 @@ dev-log.txt
 *.tsbuildinfo
 .clinerules
 ~$*
+.sharrowkin/
 
 # Данные бота: сессии диалогов и история проектов
 apps/bot/data/
