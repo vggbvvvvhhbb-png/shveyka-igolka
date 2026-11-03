@@ -88,7 +88,16 @@ export function Footer() {
           <p className="font-latin text-sm italic text-ink-3">
             Швейка · Атлас домашнего шитья · MMXXVI
           </p>
-          <ThemeToggle />
+          <div className="flex items-center gap-5">
+            {/* Заставка сама приходит раз за сессию; ссылка возвращает её. */}
+            <Link
+              href="/?intro=1"
+              className="text-sm text-ink-2 transition-colors hover:text-green"
+            >
+              Показать заставку снова
+            </Link>
+            <ThemeToggle />
+          </div>
         </div>
       </div>
     </footer>

@@ -523,3 +523,801 @@
     stroke-dashoffset: 0 !important;
   }
 }
+
+/* --- 8. Рисунок машины ---------------------------------------------------- */
+
+/* Правила здесь вне @layer: стили самой схемы лежат внутри SVG и тоже вне
+   слоя, поэтому переопределить их можно только правилом без слоя. */
+
+.machine-callouts {
+  pointer-events: none;
+  overflow: visible;
+}
+
+.machine-callout {
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.machine-callout-line {
+  fill: none;
+  stroke: var(--hair-2);
+  stroke-width: 1;
+  transition:
+    stroke var(--t-ui) var(--ease-ink),
+    stroke-width var(--t-ui) var(--ease-ink);
+}
+
+.machine-callout-dot {
+  fill: var(--thread);
+  stroke: none;
+}
+
+.machine-callout-ring {
+  fill: var(--paper-hi);
+  stroke: var(--hair-2);
+  stroke-width: 1;
+  transition:
+    fill var(--t-ui) var(--ease-ink),
+    stroke var(--t-ui) var(--ease-ink);
+}
+
+.machine-callout-number {
+  font-family: var(--font-latin);
+  font-size: 9px;
+  fill: var(--ink-2);
+}
+
+.machine-callout-text {
+  font-family: var(--font-body);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  fill: var(--ink-2);
+  transition: fill var(--t-ui) var(--ease-ink);
+}
+
+.machine-callout:hover .machine-callout-line,
+.machine-callout:focus-visible .machine-callout-line,
+.machine-callout[data-callout-active] .machine-callout-line {
+  stroke: var(--thread);
+  stroke-width: 1.8;
+}
+
+.machine-callout:hover .machine-callout-ring,
+.machine-callout:focus-visible .machine-callout-ring,
+.machine-callout[data-callout-active] .machine-callout-ring {
+  stroke: var(--thread);
+}
+
+.machine-callout:hover .machine-callout-text,
+.machine-callout:focus-visible .machine-callout-text,
+.machine-callout[data-callout-active] .machine-callout-text {
+  fill: var(--green);
+}
+
+/* Когда выбрана деталь, остальные приглушаются. */
+.machine-figure [data-part] {
+  transition: opacity var(--t-ui) var(--ease-ink);
+}
+
+.machine-figure[data-active] [data-part]:not([data-part-active]) {
+  opacity: 0.34;
+}
+
+/* Камера скролл-истории наезжает плавно, а не скачком. */
+.machine-camera {
+  transition: transform 700ms var(--ease-ink);
+}
+
+/* --- 9. Плетение ткани ---------------------------------------------------- */
+
+.weave-figure .shv-w-warp,
+.weave-figure .shv-w-weft,
+.weave-figure .shv-w-under,
+.weave-figure .shv-w-shade,
+.weave-figure .shv-w-frame,
+.weave-figure .shv-w-texture,
+.weave-figure .shv-w-loop,
+.weave-figure .shv-w-nap {
+  transition: opacity var(--t-ui) var(--ease-ink);
+}
+
+/* Указатель на легенде приглушает всё, кроме выбранного слоя. */
+.weave-figure[data-active="warp"] .shv-w-weft,
+.weave-figure[data-active="warp"] .shv-w-under {
+  opacity: 0.28;
+}
+
+.weave-figure[data-active="weft"] .shv-w-warp,
+.weave-figure[data-active="weft"] .shv-w-under {
+  opacity: 0.28;
+}
+
+.weave-figure[data-active="edge"] .shv-w-warp,
+.weave-figure[data-active="edge"] .shv-w-weft,
+.weave-figure[data-active="edge"] .shv-w-under {
+  opacity: 0.28;
+}
+
+/* --- 10. Паспорт ткани ---------------------------------------------------- */
+
+/* Плита паспорта: бумага, волосяная рамка, радиус 4px. */
+.fabric-passport-plate {
+  border: 1px solid var(--hair);
+  background: var(--paper-hi);
+  border-radius: var(--radius-plate);
+  padding: 1.5rem 1.25rem;
+}
+
+/* Шапка паспорта: имя, состав и виды ткани. */
+.fabric-passport-head {
+  border-bottom: 1px solid var(--hair);
+  padding-bottom: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+/* Виды ткани: подписи курсивом, как в старом определителе. */
+.fabric-passport-variants {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1.25rem;
+  margin: 0.5rem 0 0.75rem;
+}
+
+.fabric-passport-variant {
+  font-family: var(--font-latin);
+  font-style: italic;
+  font-size: 1rem;
+  color: var(--ink-2);
+}
+
+.fabric-passport-variant::before {
+  content: "· ";
+  color: var(--gold);
+}
+
+/* Мелкая метка записи: категория, вес, растяжимость. */
+.fabric-passport-chip {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--hair);
+  border-radius: var(--radius-plate);
+  padding: 0.15rem 0.55rem;
+  font-size: 0.78rem;
+  color: var(--ink-2);
+}
+
+/* Три колонки плиты. */
+.fabric-passport-grid {
+  display: grid;
+  gap: 1.75rem;
+}
+
+/* На узком экране колонки идут в порядке: плетение, описание, работа с тканью. */
+.fabric-passport-col-center {
+  order: 1;
+}
+
+.fabric-passport-col-left {
+  order: 2;
+}
+
+.fabric-passport-col-right {
+  order: 3;
+}
+
+.fabric-passport-col {
+  min-width: 0;
+}
+
+@media (min-width: 1024px) {
+  .fabric-passport-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr) minmax(0, 1fr);
+  }
+
+  .fabric-passport-col-left {
+    order: 1;
+    border-right: 1px solid var(--hair);
+    padding-right: 1.5rem;
+  }
+
+  .fabric-passport-col-center {
+    order: 2;
+    padding: 0 1.5rem;
+  }
+
+  .fabric-passport-col-right {
+    order: 3;
+    border-left: 1px solid var(--hair);
+    padding-left: 1.5rem;
+  }
+}
+
+/* Блок внутри колонки: заголовок и содержимое. */
+.fabric-passport-block + .fabric-passport-block {
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--hair);
+}
+
+.fabric-passport-title {
+  font-family: var(--font-body);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+  margin-bottom: 0.75rem;
+}
+
+.fabric-passport-title--center {
+  text-align: center;
+}
+
+/* Пункты описания: «Первое — …», «Второе — …». */
+.fabric-passport-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.6rem;
+}
+
+.fabric-passport-list li {
+  color: var(--ink-2);
+  line-height: 1.55;
+}
+
+.fabric-passport-ordinal {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+/* Настройки машины: иконка в кружке, название и значение. */
+.fabric-passport-settings {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.15rem;
+}
+
+.fabric-passport-setting {
+  display: grid;
+  grid-template-columns: 2.25rem 1fr;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.35rem 0;
+}
+
+.fabric-passport-setting-icon {
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 1px solid var(--hair-2);
+  border-radius: 999px;
+  color: var(--ink-2);
+}
+
+.fabric-passport-setting-icon svg {
+  width: 1.15rem;
+  height: 1.15rem;
+}
+
+.fabric-passport-setting-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.fabric-passport-setting-label {
+  font-size: 0.68rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.fabric-passport-setting-value {
+  color: var(--ink);
+}
+
+/* Заметка мастера: цитата с золотой линейкой. */
+.fabric-passport-quote {
+  margin: 0;
+  border-left: 3px solid var(--gold);
+  padding-left: 1rem;
+  font-family: var(--font-latin);
+  font-style: italic;
+  font-size: 1.0625rem;
+  line-height: 1.5;
+  color: var(--ink-2);
+}
+
+/* Работа с тканью: три строки. */
+.fabric-passport-work {
+  margin: 0;
+  display: grid;
+  gap: 0.15rem;
+}
+
+.fabric-passport-work dt {
+  font-size: 0.68rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.fabric-passport-work dd {
+  margin: 0 0 0.75rem;
+  color: var(--ink-2);
+  line-height: 1.55;
+}
+
+/* Заметка «Осторожно»: золотая подложка, линейка и оранжевая точка. */
+.fabric-passport-caution {
+  position: relative;
+  margin: 0;
+  background: var(--gold-wash);
+  border-left: 3px solid var(--gold);
+  padding: 0.85rem 1rem 0.85rem 1.9rem;
+  color: var(--ink);
+  line-height: 1.55;
+}
+
+.fabric-passport-caution::before {
+  content: "";
+  position: absolute;
+  left: 0.75rem;
+  top: 1.2rem;
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--orange);
+}
+
+/* Уход: четыре знака в кружках. */
+.fabric-passport-care {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.6rem;
+}
+
+.fabric-passport-care-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  text-align: center;
+}
+
+.fabric-passport-care-icon {
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border: 1px solid var(--hair-2);
+  border-radius: 999px;
+  color: var(--ink-2);
+}
+
+.fabric-passport-care-icon svg {
+  width: 1.35rem;
+  height: 1.35rem;
+}
+
+.fabric-passport-care-icon[data-empty="true"] {
+  border-style: dashed;
+  color: var(--ink-3);
+}
+
+.fabric-passport-care-caption {
+  font-size: 0.7rem;
+  line-height: 1.35;
+  color: var(--ink-3);
+}
+
+/* Ряд C: схема шитья и плотность. */
+.fabric-passport-row-c {
+  margin-top: 1.75rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--hair);
+  display: grid;
+  gap: 1.75rem;
+}
+
+@media (min-width: 1024px) {
+  .fabric-passport-row-c {
+    grid-template-columns: minmax(0, 3fr) minmax(0, 1fr);
+  }
+}
+
+/* Шаги схемы, соединённые стрелками-стежками. */
+.fabric-passport-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.75rem;
+}
+
+.fabric-passport-step-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1 1 13rem;
+}
+
+.fabric-passport-step {
+  flex: 1;
+  border: 1px solid var(--hair);
+  border-radius: var(--radius-plate);
+  background: var(--paper);
+  padding: 0.65rem 0.75rem;
+}
+
+.fabric-passport-step-number {
+  display: inline-grid;
+  place-items: center;
+  width: 1.4rem;
+  height: 1.4rem;
+  border: 1px solid var(--hair-2);
+  border-radius: 999px;
+  font-family: var(--font-latin);
+  font-size: 0.78rem;
+  color: var(--ink-2);
+}
+
+.fabric-passport-step-title {
+  display: block;
+  margin-left: 0.35rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink);
+}
+
+.fabric-passport-step-text {
+  display: block;
+  margin-top: 0.35rem;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: var(--ink-2);
+}
+
+.fabric-passport-step-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.75rem;
+  margin-top: 0.35rem;
+  font-size: 0.78rem;
+}
+
+.fabric-passport-step-arrow {
+  flex: none;
+  width: 2rem;
+  color: var(--thread);
+}
+
+/* Плотность: четыре кружка, заполненных золотом по весу ткани. */
+.fabric-passport-density-dots {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.fabric-passport-dot {
+  width: 0.8rem;
+  height: 0.8rem;
+  border: 1px solid var(--hair-2);
+  border-radius: 999px;
+}
+
+.fabric-passport-dot--on {
+  background: var(--gold);
+  border-color: var(--gold);
+}
+
+.fabric-passport-density-label {
+  margin-top: 0.6rem;
+  color: var(--ink);
+}
+
+.fabric-passport-density-value {
+  font-size: 0.85rem;
+  color: var(--ink-3);
+}
+
+/* Иллюстрация плетения: плита с полями для выносок. */
+.weave-plate {
+  position: relative;
+  width: 100%;
+  background: var(--paper-hi);
+  border: 1px solid var(--hair);
+  border-radius: var(--radius-plate);
+  overflow: hidden;
+}
+
+/* Полотно внутри плиты: увеличение обрезает его край, а не тянет. */
+.weave-cloth {
+  position: absolute;
+  overflow: hidden;
+}
+
+.weave-cloth-zoom {
+  width: 100%;
+  height: 100%;
+  transform-origin: 0 50%;
+  transition: transform 120ms var(--ease-ink);
+  will-change: transform;
+}
+
+.weave-cloth-canvas {
+  width: 100%;
+  height: 100%;
+}
+
+.weave-cloth-canvas svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* Выноски лежат отдельным слоем поверх полотна. */
+.weave-callouts {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.weave-callout-line {
+  fill: none;
+  stroke: var(--hair-2);
+  stroke-width: 1;
+  stroke-linecap: round;
+}
+
+.weave-callout-dot {
+  fill: var(--thread);
+}
+
+.weave-callout-ring {
+  fill: var(--paper-hi);
+  stroke: var(--hair-2);
+  stroke-width: 1;
+}
+
+.weave-callout-number {
+  font-family: var(--font-latin);
+  font-size: 10px;
+  fill: var(--ink-2);
+}
+
+.weave-callout-text {
+  font-family: var(--font-body);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  fill: var(--ink-2);
+}
+
+/* На узком экране подписи у выносок не помещаются: остаются кружки с
+   номерами, а названия читаются в легенде под рисунком. */
+@media (max-width: 640px) {
+  .weave-callout-text {
+    display: none;
+  }
+
+  .weave-callout-number {
+    font-size: 12px;
+  }
+}
+
+/* Линейка-масштаб: ходок — узкая латунная пластинка. */
+.weave-ruler {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.weave-ruler-track {
+  flex: 1;
+  min-width: 0;
+}
+
+.weave-ruler-input {
+  -webkit-appearance: none;
+  appearance: none;
+  display: block;
+  width: 100%;
+  height: 26px;
+  background: transparent;
+  cursor: ew-resize;
+}
+
+.weave-ruler-input::-webkit-slider-runnable-track {
+  height: 2px;
+  background: var(--hair-2);
+}
+
+.weave-ruler-input::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 24px;
+  margin-top: -11px;
+  border: 1px solid var(--hair-2);
+  border-radius: 4px;
+  background: linear-gradient(180deg, var(--gold-wash) 0%, var(--gold) 55%);
+}
+
+.weave-ruler-input::-moz-range-track {
+  height: 2px;
+  background: var(--hair-2);
+}
+
+.weave-ruler-input::-moz-range-thumb {
+  width: 18px;
+  height: 24px;
+  border: 1px solid var(--hair-2);
+  border-radius: 4px;
+  background: linear-gradient(180deg, var(--gold-wash) 0%, var(--gold) 55%);
+}
+
+/* Деления линейки: подписи совпадают с ходом ползунка. */
+.weave-ruler-scale {
+  position: relative;
+  height: 24px;
+  margin-top: -2px;
+}
+
+.weave-ruler-tick {
+  position: absolute;
+  bottom: 0;
+  width: 1px;
+  height: 6px;
+  background: var(--hair-2);
+  transform: translateX(-50%);
+}
+
+.weave-ruler-tick--major {
+  height: 10px;
+  background: var(--ink-3);
+}
+
+.weave-ruler-number {
+  position: absolute;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: var(--font-latin);
+  font-size: 0.72rem;
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+
+.weave-ruler-value {
+  font-family: var(--font-latin);
+  font-size: 0.9rem;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+
+/* Легенда под рисунком: список выносок с пояснениями. */
+.weave-legend {
+  list-style: none;
+  margin: 1rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.5rem;
+}
+
+@media (min-width: 640px) {
+  .weave-legend {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.weave-legend-item {
+  display: grid;
+  grid-template-columns: 1.5rem 1fr;
+  gap: 0 0.6rem;
+  width: 100%;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--hair);
+  border-radius: var(--radius-plate);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color var(--t-ui) var(--ease-ink),
+    background-color var(--t-ui) var(--ease-ink);
+}
+
+.weave-legend-item:hover,
+.weave-legend-item:focus-visible {
+  border-color: var(--hair-2);
+  background: var(--wash);
+}
+
+.weave-legend-number {
+  grid-row: span 2;
+  display: grid;
+  place-items: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border: 1px solid var(--hair-2);
+  border-radius: 999px;
+  font-family: var(--font-latin);
+  font-size: 0.8rem;
+  color: var(--ink-2);
+}
+
+.weave-legend-label {
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink);
+}
+
+.weave-legend-note {
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: var(--ink-3);
+}
+
+/* Новые слои иллюстрации: кромка и диагональ саржи. */
+.weave-figure .shv-w-selvedge,
+.weave-figure .shv-w-diagonal,
+.weave-figure .shv-w-float {
+  transition: opacity var(--t-ui) var(--ease-ink);
+}
+
+/* Указатель на легенде приглушает всё, кроме выбранного слоя. */
+.weave-figure[data-active] .shv-w-selvedge {
+  opacity: 0.28;
+}
+
+.weave-figure[data-active="edge"] .shv-w-selvedge {
+  opacity: 1;
+}
+
+.weave-figure[data-active="warp"] .shv-w-texture,
+.weave-figure[data-active="weft"] .shv-w-texture,
+.weave-figure[data-active="edge"] .shv-w-texture {
+  opacity: 0.28;
+}
+
+.weave-figure[data-active="warp"] .shv-w-diagonal,
+.weave-figure[data-active="weft"] .shv-w-diagonal,
+.weave-figure[data-active="edge"] .shv-w-diagonal {
+  opacity: 0.28;
+}
+
+.weave-figure[data-active="float"] .shv-w-warp,
+.weave-figure[data-active="float"] .shv-w-weft,
+.weave-figure[data-active="float"] .shv-w-under {
+  opacity: 0.28;
+}
+
+.weave-figure[data-active="diagonal"] .shv-w-warp,
+.weave-figure[data-active="diagonal"] .shv-w-weft,
+.weave-figure[data-active="diagonal"] .shv-w-under {
+  opacity: 0.28;
+}
+
+.weave-figure[data-active="nap"] .shv-w-warp,
+.weave-figure[data-active="nap"] .shv-w-weft,
+.weave-figure[data-active="nap"] .shv-w-under {
+  opacity: 0.28;
+}

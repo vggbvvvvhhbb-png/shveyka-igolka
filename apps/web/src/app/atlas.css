@@ -1,0 +1,195 @@
+/* ==========================================================================
+   Плита главной: три колонки вокруг рисунка машины.
+
+   Правила вне @layer: плита — это раскладка страницы, она не должна
+   перебиваться слоями типографики.
+
+   Раскладка повторяет принцип страницы определителя: слева мелкие разделы,
+   в центре таблица, справа заметки. На узком экране колонки складываются в
+   одну, и первой идёт центральная — с рисунком.
+   ========================================================================== */
+
+.atlas-row {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2rem;
+}
+
+@media (min-width: 1024px) {
+  .atlas-row {
+    grid-template-columns: minmax(0, 3fr) minmax(0, 6fr) minmax(0, 3fr);
+    gap: 2.5rem;
+    align-items: start;
+  }
+}
+
+.atlas-col {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+}
+
+/* Шаги «С чего начать»: номер в старой засечной цифрой. */
+.atlas-step {
+  display: flex;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  line-height: 1.55;
+  color: var(--ink-2);
+}
+
+.atlas-step__num {
+  flex: none;
+  font-family: var(--font-latin);
+  font-style: italic;
+  color: var(--ink-3);
+}
+
+/* Калькулятор: иконка в круге + название + строка. */
+.atlas-calc {
+  display: flex;
+  gap: 0.7rem;
+  align-items: flex-start;
+  padding: 0.35rem 0;
+  transition: color var(--t-ui) var(--ease-ink);
+}
+
+.atlas-calc:hover .atlas-calc__icon {
+  border-color: var(--green);
+  color: var(--green);
+}
+
+.atlas-calc__icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 1px solid var(--hair-2);
+  border-radius: 50%;
+  color: var(--ink-2);
+  background: var(--paper-hi);
+  transition:
+    border-color var(--t-ui) var(--ease-ink),
+    color var(--t-ui) var(--ease-ink);
+}
+
+/* Цитата из архива помощника: золотая вертикальная линейка слева. */
+.atlas-quote {
+  border-left: 3px solid var(--gold);
+  padding-left: 0.9rem;
+}
+
+/* Заметка «Важно»: подложка золотом, линейка слева, оранжевая точка. */
+.atlas-caution {
+  position: relative;
+  background: var(--gold-wash);
+  border-left: 3px solid var(--gold);
+  padding: 0.7rem 0.85rem 0.7rem 1.6rem;
+}
+
+.atlas-caution::before {
+  content: "";
+  position: absolute;
+  left: 0.6rem;
+  top: 0.95rem;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--orange);
+}
+
+/* Пояснение к выбранной детали: место для текста меняется, рамка постоянна. */
+.atlas-note {
+  border: 1px solid var(--hair);
+  background: var(--paper-hi);
+  border-radius: var(--radius-plate);
+  padding: 0.9rem 1rem;
+  min-height: 8.5rem;
+}
+
+/* Режимы помощника: название зелёным, пояснение мельче. */
+.atlas-mode {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.45;
+}
+
+.atlas-mode__name {
+  font-family: var(--font-title);
+  font-weight: 700;
+  color: var(--green);
+}
+
+.atlas-mode__note {
+  font-size: 0.75rem;
+  color: var(--ink-3);
+}
+
+/* Формат ответа: короткий ряд подписей. */
+.atlas-format {
+  font-family: var(--font-latin);
+  font-style: italic;
+  font-size: 0.9rem;
+  color: var(--ink-2);
+  cursor: help;
+  border-bottom: 1px dotted var(--hair-2);
+}
+
+/* Кнопка лупы. */
+.atlas-loupe-btn {
+  font-family: var(--font-body);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+  background: transparent;
+  border: 1px solid var(--hair-2);
+  border-radius: var(--radius-plate);
+  padding: 0.3rem 0.6rem;
+  cursor: pointer;
+  transition:
+    color var(--t-ui) var(--ease-ink),
+    border-color var(--t-ui) var(--ease-ink),
+    background-color var(--t-ui) var(--ease-ink);
+}
+
+.atlas-loupe-btn:hover {
+  color: var(--green);
+  border-color: var(--green);
+  background: var(--paper-hi);
+}
+
+.atlas-loupe-btn[aria-pressed="true"] {
+  color: var(--paper-hi);
+  background: var(--green);
+  border-color: var(--green);
+}
+
+/* Лупа: круг с латунной оправой, следует за курсором. */
+.machine-loupe {
+  position: fixed;
+  z-index: 70;
+  width: 160px;
+  height: 160px;
+  margin: -80px 0 0 -80px;
+  border-radius: 50%;
+  overflow: hidden;
+  pointer-events: none;
+  box-shadow:
+    0 0 0 2px var(--gold),
+    0 0 0 3px var(--hair-2);
+}
+
+.machine-loupe__paper {
+  fill: var(--paper-hi);
+}
+
+/* Бережное движение: лупа не нужна, когда человек просил меньше движения. */
+@media (prefers-reduced-motion: reduce) {
+  .machine-loupe {
+    display: none;
+  }
+}

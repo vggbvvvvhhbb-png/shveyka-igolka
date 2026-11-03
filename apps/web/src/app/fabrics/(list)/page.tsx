@@ -71,9 +71,10 @@ export default async function FabricsPage({
 
   return (
     <div className="space-y-6">
-      <div className="space-y-1">
-        <h1 className="text-3xl font-bold text-ink">Каталог тканей</h1>
-        <p className="text-ink-2">Найдено {total} тканей</p>
+      <div className="space-y-2 border-b border-hair pb-5">
+        <p className="plate-label">Табл. III</p>
+        <h1 className="text-4xl font-extrabold text-green md:text-5xl">Ткани</h1>
+        <p className="plate-latin">Textilia — {total} образцов</p>
       </div>
 
       <FabricFilters />
