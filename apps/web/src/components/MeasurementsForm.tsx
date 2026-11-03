@@ -92,7 +92,7 @@ export function MeasurementsForm({ initial }: { initial: Measurements }) {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {fields.map((field) => (
           <div key={field.key} className="space-y-1">
-            <label htmlFor={`measure-${field.key}`} className="block text-sm text-stone-700">
+            <label htmlFor={`measure-${field.key}`} className="block text-sm text-ink-2">
               {field.label}
             </label>
             <input
@@ -106,13 +106,13 @@ export function MeasurementsForm({ initial }: { initial: Measurements }) {
               placeholder={field.hint}
               value={values[field.key] ?? ""}
               onChange={(e) => onChange(field.key, e.currentTarget.value)}
-              className="w-full rounded-xl border border-stone-300 bg-white px-4 py-2 text-base text-stone-800 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-stone-300"
+              className="w-full rounded-plate border border-hair-2 bg-paper-hi px-4 py-2 text-base text-ink placeholder:text-ink-3 focus:ring-2 focus:ring-hair-2"
             />
           </div>
         ))}
       </div>
 
-      <p className="text-sm text-stone-500">
+      <p className="text-sm text-ink-3">
         Заполните столько мерок, сколько знаете. Пустые поля можно оставить — Швейка подставит их
         сама, когда спросите про проект.
       </p>
@@ -120,7 +120,7 @@ export function MeasurementsForm({ initial }: { initial: Measurements }) {
       {status && (
         <p
           role="status"
-          className={status.kind === "ok" ? "text-sm text-stone-700" : "text-sm text-red-700"}
+          className={status.kind === "ok" ? "text-sm text-ink-2" : "text-sm text-thread"}
         >
           {status.text}
         </p>
@@ -129,7 +129,7 @@ export function MeasurementsForm({ initial }: { initial: Measurements }) {
       <button
         type="submit"
         disabled={saving}
-        className="rounded-full bg-stone-900 px-5 py-2 text-white disabled:opacity-40 hover:bg-stone-700"
+        className="rounded-plate bg-thread px-5 py-2 text-paper-hi disabled:opacity-40 hover:bg-thread-2"
       >
         {saving ? "Сохраняю…" : "Сохранить мерки"}
       </button>

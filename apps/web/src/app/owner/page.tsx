@@ -18,39 +18,39 @@ export default async function OwnerPage({
 
   return (
     <div className="max-w-sm mx-auto space-y-4">
-      <h1 className="text-2xl font-bold text-stone-900">Вход владельца</h1>
+      <h1 className="text-2xl font-bold text-ink">Вход владельца</h1>
 
       {!configured ? (
-        <p className="text-stone-600 leading-relaxed">
+        <p className="text-ink-2 leading-relaxed">
           Вход владельца не настроен — личные страницы сейчас доступны всем.
         </p>
       ) : (
         <>
-          <p className="text-stone-600 leading-relaxed">
+          <p className="text-ink-2 leading-relaxed">
             Мерки и журнал шитья доступны только владельцу сайта. Введите ключ.
           </p>
 
           <form method="post" action="/api/owner" className="space-y-4">
-            <label className="block text-sm font-medium text-stone-800 dark:text-stone-200">
+            <label className="block text-sm font-medium text-ink">
               Ключ
               <input
                 name="key"
                 type="password"
                 required
                 autoComplete="current-password"
-                className="mt-1 block w-full rounded-lg border border-stone-300 bg-white p-2 dark:border-stone-700 dark:bg-stone-900"
+                className="mt-1 block w-full rounded-plate border border-hair-2 bg-paper-hi p-2"
               />
             </label>
 
             {error && MESSAGES[error] && (
-              <p role="alert" className="text-sm text-red-700 dark:text-red-400">
+              <p role="alert" className="text-sm text-thread">
                 {MESSAGES[error]}
               </p>
             )}
 
             <button
               type="submit"
-              className="rounded-lg bg-orange-700 px-4 py-2 font-medium text-white hover:bg-orange-800"
+              className="rounded-plate bg-thread px-4 py-2 font-medium text-paper-hi hover:bg-thread-2"
             >
               Войти
             </button>

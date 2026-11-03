@@ -72,8 +72,8 @@ export default async function FabricsPage({
   return (
     <div className="space-y-6">
       <div className="space-y-1">
-        <h1 className="text-3xl font-bold text-stone-900">Каталог тканей</h1>
-        <p className="text-stone-600">Найдено {total} тканей</p>
+        <h1 className="text-3xl font-bold text-ink">Каталог тканей</h1>
+        <p className="text-ink-2">Найдено {total} тканей</p>
       </div>
 
       <FabricFilters />
@@ -85,9 +85,7 @@ export default async function FabricsPage({
       {visibleFabrics.length === 0 ? (
         <div className="text-center py-12">
           <p className="text-2xl mb-2">🔍</p>
-          <p className="text-stone-600">
-            Ничего не найдено. Попробуйте изменить запрос или фильтры.
-          </p>
+          <p className="text-ink-2">Ничего не найдено. Попробуйте изменить запрос или фильтры.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">

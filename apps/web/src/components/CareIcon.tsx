@@ -15,7 +15,7 @@ export function CareIcon({ icon }: { icon: CareIconSpec }) {
         strokeWidth="2"
         role="img"
         aria-label={icon.label}
-        className="text-stone-700"
+        className="text-ink-2"
       >
         {icon.kind === "wash" && (
           <>
@@ -74,7 +74,7 @@ export function CareIcon({ icon }: { icon: CareIconSpec }) {
         )}
         {icon.forbidden && <path d="M4 4 36 36M36 4 4 36" strokeWidth="2.5" />}
       </svg>
-      <figcaption className="mt-1 text-xs text-stone-600">{icon.label}</figcaption>
+      <figcaption className="mt-1 text-xs text-ink-2">{icon.label}</figcaption>
     </figure>
   );
 }

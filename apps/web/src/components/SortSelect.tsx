@@ -38,14 +38,14 @@ export function SortSelect({ value, query }: { value: string; query: CatalogQuer
 
   return (
     <div className="flex items-center gap-2">
-      <label htmlFor="catalog-sort" className="text-sm text-stone-500">
+      <label htmlFor="catalog-sort" className="text-sm text-ink-3">
         Сортировка
       </label>
       <select
         id="catalog-sort"
         value={value}
         onChange={handleChange}
-        className="rounded-xl border border-stone-300 bg-white px-3 py-2 text-base text-stone-800 focus:outline-none focus:ring-2 focus:ring-stone-300"
+        className="rounded-plate border border-hair-2 bg-paper-hi px-3 py-2 text-base text-ink focus:ring-2 focus:ring-hair-2"
       >
         {sortOptions.map((option) => (
           <option key={option.value} value={option.value}>

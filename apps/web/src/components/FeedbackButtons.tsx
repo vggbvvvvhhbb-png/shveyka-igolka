@@ -72,8 +72,8 @@ export function FeedbackButtons({
       aria-pressed={rating === value}
       className={`rounded-full border px-3 py-1 text-sm disabled:opacity-40 ${
         rating === value
-          ? "border-stone-900 bg-stone-900 text-white"
-          : "border-stone-300 text-stone-600 hover:border-stone-500"
+          ? "border-green bg-thread text-paper-hi"
+          : "border-hair-2 text-ink-2 hover:border-green"
       }`}
     >
       {label}
@@ -85,7 +85,7 @@ export function FeedbackButtons({
       <div className="flex flex-wrap items-center gap-2">
         {button("up", "Полезно")}
         {button("down", "Не то")}
-        {rating && !error && <span className="text-sm text-stone-500">Спасибо за оценку</span>}
+        {rating && !error && <span className="text-sm text-ink-3">Спасибо за оценку</span>}
       </div>
 
       {rating === "down" && !commentSent && (
@@ -95,22 +95,22 @@ export function FeedbackButtons({
             onChange={(e) => setComment(e.target.value.slice(0, COMMENT_MAX))}
             rows={2}
             placeholder="Что не так? Необязательно"
-            className="w-full rounded-xl border border-stone-300 bg-white p-2 text-sm text-stone-800 focus:outline-none focus:border-stone-500"
+            className="w-full rounded-plate border border-hair-2 bg-paper-hi p-2 text-sm text-ink focus:border-green"
           />
           <button
             type="button"
             onClick={() => void sendComment()}
             disabled={busy || comment.trim().length === 0}
-            className="rounded-full bg-stone-900 px-4 py-1 text-sm text-white disabled:opacity-40 hover:bg-stone-700"
+            className="rounded-plate bg-thread px-4 py-1 text-sm text-paper-hi disabled:opacity-40 hover:bg-thread-2"
           >
             Отправить комментарий
           </button>
         </div>
       )}
-      {commentSent && <p className="text-sm text-stone-500">Комментарий отправлен</p>}
+      {commentSent && <p className="text-sm text-ink-3">Комментарий отправлен</p>}
 
       {error && (
-        <p role="alert" className="text-sm text-red-700">
+        <p role="alert" className="text-sm text-thread">
           {error}
         </p>
       )}

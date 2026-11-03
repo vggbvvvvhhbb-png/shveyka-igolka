@@ -6,8 +6,8 @@ export default function AssistantLoading() {
       <span className="sr-only">Загрузка помощника…</span>
 
       <div className="space-y-2">
-        <div className="h-8 w-64 rounded-lg bg-stone-200 animate-pulse" />
-        <div className="h-4 w-80 rounded bg-stone-100 animate-pulse" />
+        <div className="h-8 w-64 rounded-plate bg-wash-2 animate-pulse" />
+        <div className="h-4 w-80 rounded bg-wash animate-pulse" />
       </div>
 
       <div className="space-y-4">
@@ -15,7 +15,7 @@ export default function AssistantLoading() {
         <CardSkeleton variant="seam" />
       </div>
 
-      <div className="h-12 w-full rounded-xl bg-stone-200 animate-pulse" />
+      <div className="h-12 w-full rounded-plate bg-wash-2 animate-pulse" />
     </div>
   );
 }

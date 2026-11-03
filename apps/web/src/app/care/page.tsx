@@ -37,8 +37,8 @@ function Section({ title, items }: { title: string; items: string[] }) {
   if (items.length === 0) return null;
   return (
     <div>
-      <h3 className="font-medium text-stone-900">{title}</h3>
-      <ul className="list-disc space-y-0.5 pl-5 text-sm text-stone-700">
+      <h3 className="font-medium text-ink">{title}</h3>
+      <ul className="list-disc space-y-0.5 pl-5 text-sm text-ink-2">
         {items.map((t) => (
           <li key={t}>{t}</li>
         ))}

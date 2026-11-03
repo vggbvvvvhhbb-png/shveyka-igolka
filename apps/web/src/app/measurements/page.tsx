@@ -22,8 +22,8 @@ export default async function MeasurementsPage() {
   return (
     <div className="space-y-6 max-w-2xl">
       <div className="space-y-1">
-        <h1 className="text-3xl font-bold text-stone-900">Мерки</h1>
-        <p className="text-stone-600">
+        <h1 className="text-3xl font-bold text-ink">Мерки</h1>
+        <p className="text-ink-2">
           Швейка учитывает мерки, когда подбирает проект и считает расход ткани. Мерки остаются на
           этом устройстве и никуда не отправляются, пока вы сами не спросите про них в чате.
         </p>

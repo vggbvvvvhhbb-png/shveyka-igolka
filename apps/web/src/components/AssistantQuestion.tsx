@@ -61,9 +61,9 @@ export function AssistantQuestion({ raw }: { raw?: string | string[] | null }) {
   }
 
   return (
-    <div className="rounded-2xl border border-stone-200 bg-stone-50 p-4">
-      <p className="text-sm text-stone-500">Ваш вопрос</p>
-      <p className="mt-1 text-stone-800 leading-relaxed">{question}</p>
+    <div className="rounded-plate border border-hair bg-paper p-4">
+      <p className="text-sm text-ink-3">Ваш вопрос</p>
+      <p className="mt-1 text-ink leading-relaxed">{question}</p>
     </div>
   );
 }

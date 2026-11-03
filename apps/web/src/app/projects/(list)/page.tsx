@@ -14,14 +14,14 @@ export default async function ProjectsPage() {
   return (
     <div className="space-y-6">
       <div className="space-y-1">
-        <h1 className="text-3xl font-bold text-stone-900">Каталог проектов</h1>
-        <p className="text-stone-600">Найдено {projectList.length} проектов</p>
+        <h1 className="text-3xl font-bold text-ink">Каталог проектов</h1>
+        <p className="text-ink-2">Найдено {projectList.length} проектов</p>
       </div>
 
       {projectList.length === 0 ? (
         <div className="text-center py-12">
           <p className="text-2xl mb-2">🧵</p>
-          <p className="text-stone-600">Проектов пока нет. Загляните позже.</p>
+          <p className="text-ink-2">Проектов пока нет. Загляните позже.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">

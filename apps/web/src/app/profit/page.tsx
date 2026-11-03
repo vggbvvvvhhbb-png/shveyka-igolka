@@ -254,15 +254,15 @@ export default function ProfitPage() {
 
       <Card title="Результат" accent>
         <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
-          <dt className="text-stone-600">Материалы</dt>
+          <dt className="text-ink-2">Материалы</dt>
           <dd className="text-right">{rub(r.materials)}</dd>
-          <dt className="text-stone-600">Твоё время</dt>
+          <dt className="text-ink-2">Твоё время</dt>
           <dd className="text-right">{rub(r.labor)}</dd>
-          <dt className="text-stone-600">Инструменты</dt>
+          <dt className="text-ink-2">Инструменты</dt>
           <dd className="text-right">{rub(r.tools)}</dd>
-          <dt className="text-stone-600">Электричество</dt>
+          <dt className="text-ink-2">Электричество</dt>
           <dd className="text-right">{rub(r.electricity)}</dd>
-          <dt className="font-semibold text-stone-900">Себестоимость</dt>
+          <dt className="font-semibold text-ink">Себестоимость</dt>
           <dd className="text-right font-semibold">{rub(r.cost)}</dd>
         </dl>
         <ul className="list-disc space-y-1 pl-5">
@@ -271,7 +271,7 @@ export default function ProfitPage() {
           ))}
         </ul>
 
-        <div className="space-y-3 border-t border-stone-200 pt-4">
+        <div className="space-y-3 border-t border-hair pt-4">
           <Field label="Название проекта">
             <input
               className={inputCls}
@@ -285,7 +285,7 @@ export default function ProfitPage() {
             {busy ? "Сохраняю…" : "Сохранить в историю"}
           </button>
           {error && (
-            <p role="alert" className="text-sm text-red-700">
+            <p role="alert" className="text-sm text-thread">
               {error}
             </p>
           )}
@@ -294,7 +294,7 @@ export default function ProfitPage() {
 
       <Card title={`Статистика за ${monthName}`}>
         {stats.count === 0 ? (
-          <p className="text-sm text-stone-600">Пока нет сохранённых проектов.</p>
+          <p className="text-sm text-ink-2">Пока нет сохранённых проектов.</p>
         ) : (
           <p>
             За {monthName} ты сшила <b>{countPhrase(stats.count, ["вещь", "вещи", "вещей"])}</b>.
@@ -328,14 +328,11 @@ export default function ProfitPage() {
                   <span>
                     {rub(item.cost)}
                     {!item.gift && item.marketPrice !== null && item.marketPrice > item.cost && (
-                      <span className="text-emerald-700">
-                        {" "}
-                        (−{rub(item.marketPrice - item.cost)})
-                      </span>
+                      <span className="text-green"> (−{rub(item.marketPrice - item.cost)})</span>
                     )}
                   </span>
                   <button
-                    className="text-stone-500 underline"
+                    className="text-ink-3 underline"
                     onClick={() =>
                       confirmingId === item.id ? void remove(item.id) : setConfirmingId(item.id)
                     }

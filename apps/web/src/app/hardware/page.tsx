@@ -131,20 +131,20 @@ export default function HardwarePage() {
                   <div className={owned ? "line-through" : ""}>
                     <b>{it.name}</b>: {it.qty}
                   </div>
-                  {it.note && <div className="text-xs text-stone-500">{it.note}</div>}
+                  {it.note && <div className="text-xs text-ink-3">{it.note}</div>}
                 </div>
                 <Check label="Есть дома" checked={owned} onChange={() => toggleHave(it.id)} />
               </li>
             );
           })}
         </ul>
-        <p className="rounded-xl bg-white p-3 text-sm">
+        <p className="rounded-plate bg-paper-hi p-3 text-sm">
           Примерно {rub(lo)}–{rub(hi)}. Проверь дома — возможно, нитки и пуговицы уже есть.
         </p>
       </Card>
 
       <Card title="Текст для магазина">
-        <pre className="whitespace-pre-wrap rounded-xl bg-stone-100 p-4 text-sm">{text}</pre>
+        <pre className="whitespace-pre-wrap rounded-plate bg-wash p-4 text-sm">{text}</pre>
         <button className={btnCls} onClick={copy}>
           {copied ? "Скопировано ✓" : "Скопировать список"}
         </button>

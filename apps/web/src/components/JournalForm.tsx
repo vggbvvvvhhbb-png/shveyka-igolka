@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 
 const field =
-  "w-full rounded-xl border border-stone-300 bg-white p-2 text-stone-800 focus:outline-none focus:border-stone-500";
+  "w-full rounded-plate border border-hair-2 bg-paper-hi p-2 text-ink focus:border-green";
 
 /** Форма «Я сшила»: название, затраты, цена в магазине, ткань. */
 export function JournalForm({ fabrics }: { fabrics: { slug: string; name: string }[] }) {
@@ -49,17 +49,14 @@ export function JournalForm({ fabrics }: { fabrics: { slug: string; name: string
   }
 
   return (
-    <form
-      onSubmit={submit}
-      className="space-y-3 rounded-2xl border border-stone-200 bg-stone-50 p-4"
-    >
-      <h2 className="text-xl font-semibold text-stone-900">Я сшила</h2>
-      <label className="block space-y-1 text-stone-600">
+    <form onSubmit={submit} className="space-y-3 rounded-plate border border-hair bg-paper p-4">
+      <h2 className="text-xl font-semibold text-ink">Я сшила</h2>
+      <label className="block space-y-1 text-ink-2">
         Что именно
         <input name="name" required maxLength={80} placeholder="Платье из льна" className={field} />
       </label>
       <div className="grid gap-3 sm:grid-cols-2">
-        <label className="block space-y-1 text-stone-600">
+        <label className="block space-y-1 text-ink-2">
           Затраты, ₽
           <input
             name="cost"
@@ -71,7 +68,7 @@ export function JournalForm({ fabrics }: { fabrics: { slug: string; name: string
             className={field}
           />
         </label>
-        <label className="block space-y-1 text-stone-600">
+        <label className="block space-y-1 text-ink-2">
           Сколько стоит такое в магазине, ₽
           <input
             name="marketPrice"
@@ -83,7 +80,7 @@ export function JournalForm({ fabrics }: { fabrics: { slug: string; name: string
           />
         </label>
       </div>
-      <label className="block space-y-1 text-stone-600">
+      <label className="block space-y-1 text-ink-2">
         Ткань
         <select name="fabricSlug" defaultValue="" className={field}>
           <option value="">Не указана</option>
@@ -94,19 +91,19 @@ export function JournalForm({ fabrics }: { fabrics: { slug: string; name: string
           ))}
         </select>
       </label>
-      <label className="flex items-center gap-2 text-stone-600">
+      <label className="flex items-center gap-2 text-ink-2">
         <input type="checkbox" name="gift" value="1" />
         Это подарок — в экономию не считать
       </label>
       {error && (
-        <p role="alert" className="text-sm text-red-700">
+        <p role="alert" className="text-sm text-thread">
           {error}
         </p>
       )}
       <button
         type="submit"
         disabled={busy}
-        className="rounded-full bg-stone-900 px-5 py-2 text-white disabled:opacity-40 hover:bg-stone-700"
+        className="rounded-plate bg-thread px-5 py-2 text-paper-hi disabled:opacity-40 hover:bg-thread-2"
       >
         {busy ? "Сохраняю…" : "Записать"}
       </button>

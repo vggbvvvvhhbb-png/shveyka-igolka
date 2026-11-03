@@ -1,38 +1,60 @@
 import type { ReactNode } from "react";
 
 /**
- * Общие элементы интерфейса для калькуляторов.
- * Палитра — stone, как во всём Швейке.
+ * Общие элементы интерфейса.
+ *
+ * Палитра — «Атлас домашнего шитья»: молочная бумага, чернила, волосяные
+ * линии и красная нить как единственный акцент. Крупные скругления и
+ * белые «SaaS»-карточки убраны, поэтому радиус везде одинаковый, а блоки
+ * разделяются тонкой линией, а не тенью.
  */
 
 export const inputCls =
-  "w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-stone-800 outline-none focus:border-stone-500";
+  "w-full rounded-plate border border-hair-2 bg-paper px-3 py-2 text-ink transition-colors focus:border-green";
 
 export const btnCls =
-  "inline-flex items-center justify-center rounded-full bg-stone-900 px-5 py-2 font-medium text-white transition-colors hover:bg-stone-700 disabled:opacity-40";
+  "inline-flex items-center justify-center rounded-plate bg-thread px-5 py-2 font-medium text-paper-hi transition-colors hover:bg-thread-2 disabled:opacity-40";
 
 export const btnGhostCls =
-  "inline-flex items-center justify-center rounded-full border border-stone-300 px-5 py-2 text-stone-700 transition-colors hover:bg-stone-100";
+  "inline-flex items-center justify-center rounded-plate border border-hair-2 px-5 py-2 text-ink-2 transition-colors hover:bg-wash";
 
-/** Обёртка страницы: заголовок, пояснение и содержимое. */
+/**
+ * Обёртка страницы: заголовок таблицы, курсивная строка и содержимое.
+ *
+ * latin — необязательная подпись курсивом, как в старом определителе:
+ * «Acus et Filum · Ars sartoria domestica».
+ */
 export function PageShell({
   title,
   subtitle,
+  latin,
   children,
 }: {
   title: string;
   subtitle?: string;
+  latin?: string;
   children: ReactNode;
 }) {
   return (
-    <div className="space-y-6">
-      <header className="space-y-1">
-        <h1 className="text-3xl font-bold text-stone-900">{title}</h1>
-        {subtitle && <p className="text-stone-600">{subtitle}</p>}
+    <div className="space-y-8">
+      <header className="space-y-2 border-b border-hair pb-6">
+        <h1 className="text-4xl font-extrabold text-green md:text-5xl">{title}</h1>
+        {latin && <p className="plate-latin">{latin}</p>}
+        {subtitle && <p className="max-w-2xl text-ink-2">{subtitle}</p>}
       </header>
       {children}
     </div>
   );
+}
+
+/**
+ * Подпись раздела: капитель с разрядкой и оранжевой точкой-маркером.
+ *
+ * Точка «капает» при появлении — мелкая деталь, которая отличает живой
+ * определитель от сухого списка.
+ */
+export function SectionLabel({ children, className }: { children: ReactNode; className?: string }) {
+  return <h2 className={["plate-label drip", className].filter(Boolean).join(" ")}>{children}</h2>;
 }
 
 /** Карточка с блоком формы или результата. */
@@ -49,11 +71,11 @@ export function Card({
   return (
     <section
       className={[
-        "space-y-4 rounded-2xl border p-5",
-        accent ? "border-amber-300 bg-amber-50" : "border-stone-200 bg-white",
+        "space-y-4 rounded-plate border p-5",
+        accent ? "border-gold bg-gold-wash" : "border-hair bg-paper-hi",
       ].join(" ")}
     >
-      {title && <h2 className="text-lg font-semibold text-stone-900">{title}</h2>}
+      {title && <h2 className="text-lg font-bold text-green">{title}</h2>}
       {children}
     </section>
   );
@@ -71,9 +93,9 @@ export function Field({
 }) {
   return (
     <label className="block space-y-1">
-      <span className="text-sm font-medium text-stone-700">{label}</span>
+      <span className="text-sm font-medium text-ink-2">{label}</span>
       {children}
-      {hint && <span className="block text-xs text-stone-500">{hint}</span>}
+      {hint && <span className="block text-xs text-ink-3">{hint}</span>}
     </label>
   );
 }
@@ -149,10 +171,10 @@ export function Check({
   onChange: (v: boolean) => void;
 }) {
   return (
-    <label className="flex items-center gap-2 text-sm text-stone-700">
+    <label className="flex items-center gap-2 text-sm text-ink-2">
       <input
         type="checkbox"
-        className="h-4 w-4 accent-stone-900"
+        className="h-4 w-4 accent-gold"
         checked={checked}
         onChange={(e) => onChange(e.target.checked)}
       />

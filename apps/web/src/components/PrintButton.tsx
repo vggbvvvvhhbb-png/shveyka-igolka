@@ -6,7 +6,7 @@ export function PrintButton({ label = "Распечатать" }: { label?: stri
     <button
       type="button"
       onClick={() => window.print()}
-      className="rounded-xl border border-stone-300 px-4 py-2 text-base text-stone-700 hover:border-stone-500 print:hidden"
+      className="rounded-plate border border-hair-2 px-4 py-2 text-base text-ink-2 hover:border-green print:hidden"
     >
       {label}
     </button>

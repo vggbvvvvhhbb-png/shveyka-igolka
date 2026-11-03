@@ -7,6 +7,11 @@
  *
  * Схема — это схематичное сечение, а не чертёж с размерами: припуски и
  * величины остаются в тексте шва.
+ *
+ * Нить помечена pathLength="1": длина пути приводится к единице, поэтому
+ * внешний CSS может «рисовать» её одним свойством stroke-dashoffset, не зная
+ * настоящей длины линии. Пунктир отделочной строчки тоже задан в долях пути:
+ * после нормализации штрих в пользовательских единицах стал бы несоразмерным.
  */
 
 export type SeamKind =
@@ -70,12 +75,15 @@ const arrow = (x: number, y: number): string => `<path class="shv-a" d="M${x} ${
  */
 const BODY: Record<SeamKind, string> = {
   // Стачной шов: две детали внахлёст и строчка через обе.
-  plain: layer(16, 44, 208, 14) + layer(32, 62, 192, 14) + '<path class="shv-t" d="M132 36V84"/>',
+  plain:
+    layer(16, 44, 208, 14) +
+    layer(32, 62, 192, 14) +
+    '<path class="shv-t" pathLength="1" d="M132 36V84"/>',
 
   // Зигзаг: вид сверху, стежки зигзагом вдоль края и стрелка подачи ткани.
   zigzag:
     '<rect class="shv-f" x="20" y="16" width="200" height="80"/>' +
-    `<path class="shv-t" d="M30 70${Array.from(
+    `<path class="shv-t" pathLength="1" d="M30 70${Array.from(
       { length: 15 },
       (_, i) => `L${42 + i * 12} ${i % 2 ? 70 : 42}`
     ).join("")}"/>` +
@@ -85,7 +93,7 @@ const BODY: Record<SeamKind, string> = {
   // Оверлок: вид сверху, край ткани и обмёточные стежки через него.
   overlock:
     '<rect class="shv-f" x="20" y="16" width="148" height="84"/>' +
-    '<path class="shv-t" d="M150 20V96M176 20V96' +
+    '<path class="shv-t" pathLength="1" d="M150 20V96M176 20V96' +
     Array.from({ length: 9 }, (_, i) => `M150 ${22 + i * 9}L176 ${28 + i * 9}`).join("") +
     '"/>',
 
@@ -94,31 +102,31 @@ const BODY: Record<SeamKind, string> = {
   french:
     layer(14, 50, 96, 12) +
     layer(14, 66, 96, 12) +
-    '<path class="shv-t" d="M88 38V86"/>' +
+    '<path class="shv-t" pathLength="1" d="M88 38V86"/>' +
     '<path class="shv-l" d="M114 62H132"/>' +
     arrow(132, 62) +
     '<path fill="none" stroke="currentColor" stroke-opacity=".25" stroke-width="10" d="M146 50H206q14 0 14 12t-14 12H146"/>' +
-    '<path class="shv-t" d="M180 38V86"/>',
+    '<path class="shv-t" pathLength="1" d="M180 38V86"/>',
 
   // Запошивочный шов: один припуск подогнут поверх другого, две строчки.
   flatFelled:
     layer(20, 70, 200, 12) +
     layer(20, 58, 112, 12) +
     layer(112, 46, 80, 12) +
-    '<path class="shv-t" d="M138 36V90M184 36V90"/>',
+    '<path class="shv-t" pathLength="1" d="M138 36V90M184 36V90"/>',
 
   // Подгиб: край основной ткани подвёрнут и прошит.
   hem:
     layer(16, 46, 208, 14) +
     layer(120, 60, 104, 12) +
     layer(120, 72, 104, 12) +
-    '<path class="shv-t" d="M132 40V90"/>',
+    '<path class="shv-t" pathLength="1" d="M132 40V90"/>',
 
   // Потайной подгиб: нить ловит лишь край основной ткани.
   blind:
     layer(16, 44, 208, 14) +
     layer(16, 62, 110, 12) +
-    `<path class="shv-t" d="M22 66${Array.from(
+    `<path class="shv-t" pathLength="1" d="M22 66${Array.from(
       { length: 8 },
       (_, i) => `L${34 + i * 12} ${i % 2 ? 66 : 52}`
     ).join("")}"/>`,
@@ -127,15 +135,15 @@ const BODY: Record<SeamKind, string> = {
   topstitch:
     '<rect class="shv-f" x="20" y="16" width="200" height="88"/>' +
     '<path class="shv-l" d="M20 60H220"/>' +
-    '<path class="shv-t shv-d" d="M20 48H220M20 72H220"/>',
+    '<path class="shv-t shv-d" pathLength="1" d="M20 48H220M20 72H220"/>',
 };
 
 const STYLE =
   "<style>" +
   ".shv-f{fill:currentColor;fill-opacity:.1;stroke:currentColor;stroke-width:1.5;stroke-linejoin:round}" +
   ".shv-l{fill:none;stroke:currentColor;stroke-opacity:.5;stroke-width:1.2}" +
-  ".shv-t{fill:none;stroke:#c2410c;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}" +
-  ".shv-d{stroke-dasharray:6 4}" +
+  ".shv-t{fill:none;stroke:var(--thread, #c23b22);stroke-width:2;stroke-linecap:round;stroke-linejoin:round}" +
+  ".shv-d{stroke-dasharray:.015 .01}" +
   ".shv-a{fill:currentColor;stroke:none}" +
   "</style>";
 

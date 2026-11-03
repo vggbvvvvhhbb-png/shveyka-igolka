@@ -1,13 +1,525 @@
 @import "tailwindcss";
 
-html {
-  font-size: 17px;
+/* ==========================================================================
+   «Атлас домашнего шитья» — дизайн-система сайта.
+
+   Порядок слоёв:
+     1. @theme  — объявление токенов (палитра, шрифты, радиусы, кривые).
+     2. :root   — сами значения палитры; ночная таблица переключается
+                  через color-scheme и light-dark().
+     3. @layer base      — типика и бумага.
+     4. @layer components — готовые элементы плиты.
+     5. @layer motion    — язык движения.
+
+   Палитра, типографика и характер движения взяты из брифа «ДНК Атласа».
+   Крупные скругления, тяжёлые тени и стоковые картинки запрещены: всё
+   рисуется линиями, шрифтом и цветом.
+   ========================================================================== */
+
+/* --- 1. Токены ------------------------------------------------------------ */
+
+@theme {
+  /* Бумага и чернила */
+  --color-paper: var(--paper);
+  --color-paper-hi: var(--paper-hi);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+
+  /* Акценты */
+  --color-green: var(--green);
+  --color-green-2: var(--green-2);
+  --color-green-wash: var(--green-wash);
+  --color-gold: var(--gold);
+  --color-gold-wash: var(--gold-wash);
+  --color-orange: var(--orange);
+  --color-thread: var(--thread);
+  --color-thread-2: var(--thread-2);
+
+  /* Волосяные линии и подложки */
+  --color-hair: var(--hair);
+  --color-hair-2: var(--hair-2);
+  --color-wash: var(--wash);
+  --color-wash-2: var(--wash-2);
+
+  /* Шрифты */
+  --font-title: var(--font-playfair), Georgia, "Times New Roman", serif;
+  --font-latin: var(--font-cormorant), Georgia, "Times New Roman", serif;
+  --font-body: var(--font-golos), system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-hand: var(--font-caveat), "Segoe Script", cursive;
+
+  /* Радиус плиты: 4px. Крупные скругления запрещены. */
+  --radius-plate: 4px;
+
+  /* Кривые и длительности */
+  --ease-ink: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --ease-soft: linear(0, 0.25 10%, 0.5 20%, 0.75 30%, 1);
+  --t-micro: 140ms;
+  --t-ui: 320ms;
+  --t-draw: 1600ms;
 }
 
-/* При печати шапка и подвал не нужны: на бумаге остаётся только содержимое. */
+/* --- 2. Значения палитры -------------------------------------------------- */
+
+:root {
+  /* Светлая таблица: тёплая молочная бумага.
+     color-scheme управляет тем, какую половину light-dark() покажет. */
+  color-scheme: light dark;
+
+  --paper: #f7f3e8;
+  --paper-hi: #fffdf6;
+  --ink: #1e2b25;
+  --ink-2: #5a665f;
+  --ink-3: #8b938d;
+
+  --green: #2e5f4a;
+  --green-2: #24493a;
+  --green-wash: #8dbba6;
+  --gold: #e8be4a;
+  --gold-wash: #f3dc8e;
+  --orange: #e58a2b;
+  --thread: #c23b22;
+  --thread-2: #a33018;
+
+  --hair: rgba(30, 43, 37, 0.16);
+  --hair-2: rgba(30, 43, 37, 0.3);
+  --wash: rgba(30, 43, 37, 0.05);
+  --wash-2: rgba(30, 43, 37, 0.09);
+  --grid: rgba(30, 43, 37, 0.055);
+}
+
+/* Браузеры, умеющие light-dark(), показывают ночную палитру сами.
+   Остальные остаются на светлой — это осознанный запасной вариант. */
+@supports (color: light-dark(#000, #fff)) {
+  :root {
+    --paper: light-dark(#f7f3e8, #101a16);
+    --paper-hi: light-dark(#fffdf6, #17231d);
+    --ink: light-dark(#1e2b25, #e9e5d9);
+    --ink-2: light-dark(#5a665f, #a9b2aa);
+    --ink-3: light-dark(#8b938d, #7d867f);
+
+    --green: light-dark(#2e5f4a, #93c3ad);
+    --green-2: light-dark(#24493a, #b0d7c4);
+    --green-wash: light-dark(#8dbba6, #2c5745);
+    --gold: light-dark(#e8be4a, #e8be4a);
+    --gold-wash: light-dark(#f3dc8e, #4a3d18);
+    --orange: light-dark(#e58a2b, #e5924a);
+    --thread: light-dark(#c23b22, #d9573d);
+    --thread-2: light-dark(#a33018, #e5735a);
+
+    --hair: light-dark(rgba(30, 43, 37, 0.16), rgba(233, 229, 217, 0.16));
+    --hair-2: light-dark(rgba(30, 43, 37, 0.3), rgba(233, 229, 217, 0.3));
+    --wash: light-dark(rgba(30, 43, 37, 0.05), rgba(233, 229, 217, 0.05));
+    --wash-2: light-dark(rgba(30, 43, 37, 0.09), rgba(233, 229, 217, 0.09));
+    --grid: light-dark(rgba(30, 43, 37, 0.055), rgba(233, 229, 217, 0.05));
+  }
+}
+
+/* Ручной выбор пользователя важнее системной настройки. */
+:root[data-theme="night"] {
+  color-scheme: dark;
+}
+
+:root[data-theme="day"] {
+  color-scheme: light;
+}
+
+/* --- 3. Типика и бумага --------------------------------------------------- */
+
+@layer base {
+  html {
+    font-size: 17px;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--paper);
+    /* Сетка из тонких волосяных линий — едва различимая, как на бумаге. */
+    background-image:
+      linear-gradient(to right, var(--grid) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--grid) 1px, transparent 1px);
+    background-size: 120px 120px;
+    background-position: -1px -1px;
+    color: var(--ink);
+    font-family: var(--font-body);
+    font-size: 0.9375rem;
+    line-height: 1.6;
+    hyphens: auto;
+    text-wrap: pretty;
+  }
+
+  /* Зерно бумаги поверх всего: mix-blend-mode multiply, opacity .05. */
+  body::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+    pointer-events: none;
+    opacity: 0.05;
+    mix-blend-mode: multiply;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-title);
+    color: var(--green);
+    line-height: 1.12;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+  }
+
+  h1 {
+    font-weight: 900;
+  }
+
+  h2 {
+    font-weight: 700;
+  }
+
+  h3 {
+    font-weight: 700;
+  }
+
+  /* Римские цифры и счётчики — старыми цифрами, как в старых книгах. */
+  .num,
+  .plate-label {
+    font-variant-numeric: oldstyle-nums;
+  }
+
+  ::selection {
+    background: var(--gold-wash);
+    color: var(--ink);
+  }
+
+  :focus-visible {
+    outline: 2px dashed var(--thread);
+    outline-offset: 2px;
+  }
+}
+
+/* --- 4. Элементы плиты ---------------------------------------------------- */
+
+@layer components {
+  /* Плита: блок, обведённый волосяной линией, на бумаге. */
+  .plate {
+    border: 1px solid var(--hair);
+    background: var(--paper-hi);
+    border-radius: var(--radius-plate);
+  }
+
+  /* Подпись раздела: капитель, разрядка, оранжевая точка-маркер. */
+  .plate-label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-family: var(--font-body);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-2);
+  }
+
+  .plate-label::before {
+    content: "";
+    flex: none;
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    background: var(--orange);
+  }
+
+  /* Курсивная «латинская» строка под заголовком таблицы. */
+  .plate-latin {
+    font-family: var(--font-latin);
+    font-style: italic;
+    font-size: 1.25rem;
+    color: var(--ink-3);
+    letter-spacing: 0.02em;
+  }
+
+  /* Ссылка с красным пунктирным стежком вместо подчёркивания. */
+  .stitch-link {
+    position: relative;
+    color: var(--green);
+    transition: color var(--t-ui) var(--ease-ink);
+  }
+
+  .stitch-link::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -0.15em;
+    height: 2px;
+    background-image: repeating-linear-gradient(
+      to right,
+      var(--thread) 0 5px,
+      transparent 5px 9px
+    );
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform var(--t-ui) var(--ease-ink);
+  }
+
+  .stitch-link:hover::after,
+  .stitch-link:focus-visible::after,
+  .stitch-on::after {
+    transform: scaleX(1);
+  }
+
+  /* Шапка сжимается до одной строки, когда страница прокручена. */
+  header[data-compact="true"] > div {
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+  }
+
+  header[data-compact="true"] .header-calculators {
+    max-height: 0;
+    padding-top: 0;
+    opacity: 0;
+  }
+
+  header .header-calculators {
+    max-height: 3rem;
+    opacity: 1;
+    transition:
+      max-height var(--t-ui) var(--ease-ink),
+      padding-top var(--t-ui) var(--ease-ink),
+      opacity var(--t-ui) var(--ease-ink);
+  }
+
+  header > div {
+    transition: padding var(--t-ui) var(--ease-ink);
+  }
+
+  /* Карточка каталога: приподнимается, волосяная линия густеет. */
+  .card-plate {
+    display: block;
+    border: 1px solid var(--hair);
+    background: var(--paper-hi);
+    border-radius: var(--radius-plate);
+    transition:
+      border-color var(--t-ui) var(--ease-ink),
+      transform var(--t-ui) var(--ease-ink),
+      background-color var(--t-ui) var(--ease-ink);
+  }
+
+  .card-plate:hover,
+  .card-plate:focus-visible {
+    border-color: var(--hair-2);
+    background: var(--paper);
+    transform: translateY(-2px);
+  }
+
+  /* Цитата с золотой вертикальной линейкой. */
+  .plate-quote {
+    border-left: 2px solid var(--gold);
+    padding-left: 1rem;
+    font-family: var(--font-latin);
+    font-style: italic;
+    font-size: 1.0625rem;
+    line-height: 1.5;
+    color: var(--ink-2);
+  }
+
+  /* Рукописная пометка на полях. */
+  .hand {
+    font-family: var(--font-hand);
+    color: var(--thread);
+  }
+
+  /* Переключатель «Ночная таблица»: точка загорается золотом. */
+  .theme-toggle-dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 999px;
+    border: 1px solid var(--hair-2);
+    background: transparent;
+    transition:
+      background-color var(--t-ui) var(--ease-ink),
+      border-color var(--t-ui) var(--ease-ink);
+  }
+
+  :root[data-theme="night"] .theme-toggle-dot {
+    background: var(--gold);
+    border-color: var(--gold);
+  }
+
+  /* Ползунок прокрутки без полосы — используется в шапке. */
+  .scrollbar-hide {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* --- 5. Язык движения ----------------------------------------------------- */
+
+@layer motion {
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  @keyframes drip {
+    0% {
+      transform: scale(0);
+    }
+    55% {
+      transform: scale(1.18);
+    }
+    100% {
+      transform: scale(1);
+    }
+  }
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes draw-line {
+    to {
+      stroke-dashoffset: 0;
+    }
+  }
+
+  @keyframes pen-write {
+    from {
+      clip-path: inset(0 100% 0 0);
+    }
+    to {
+      clip-path: inset(0 0 0 0);
+    }
+  }
+
+  /* Заголовок таблицы «выписывается пером» слева направо. */
+  .title-write {
+    animation: pen-write 1.1s var(--ease-ink) backwards;
+  }
+
+  /* Появление блока снизу вверх. */
+  .rise {
+    animation: rise var(--t-ui) var(--ease-ink) backwards;
+    animation-delay: calc(var(--i, 0) * 70ms);
+  }
+
+  /* Оранжевая точка «капает» при появлении подписи раздела. */
+  .drip::before {
+    animation: drip var(--t-ui) var(--ease-ink) backwards;
+  }
+
+  /* Появление содержимого плиты: блоки всплывают по очереди. */
+  .plate-flow > * {
+    animation: rise var(--t-ui) var(--ease-ink) backwards;
+    animation-delay: calc(var(--i, 0) * 70ms);
+  }
+
+  .plate-flow > *:nth-child(1) {
+    --i: 0;
+  }
+  .plate-flow > *:nth-child(2) {
+    --i: 1;
+  }
+  .plate-flow > *:nth-child(3) {
+    --i: 2;
+  }
+  .plate-flow > *:nth-child(4) {
+    --i: 3;
+  }
+  .plate-flow > *:nth-child(5) {
+    --i: 4;
+  }
+  .plate-flow > *:nth-child(6) {
+    --i: 5;
+  }
+  .plate-flow > *:nth-child(7) {
+    --i: 6;
+  }
+  .plate-flow > *:nth-child(8) {
+    --i: 7;
+  }
+  .plate-flow > *:nth-child(9) {
+    --i: 8;
+  }
+  .plate-flow > *:nth-child(10) {
+    --i: 9;
+  }
+  .plate-flow > *:nth-child(n + 11) {
+    --i: 10;
+  }
+
+  /* Нить шва рисуется сама, когда схема попадает в поле зрения.
+     Только для браузеров со scroll-driven animations; в остальных нить
+     видна сразу. */
+  @supports (animation-timeline: view()) {
+    .seam-figure .shv-t:not(.shv-d) {
+      stroke-dasharray: 1;
+      stroke-dashoffset: 1;
+      animation: draw-line linear both;
+      animation-timeline: view();
+      animation-range: entry 20% entry 90%;
+    }
+  }
+}
+
+/* --- 6. Бережное движение ------------------------------------------------- */
+
+/* Пользователь просил меньше движения — значит, показываем конечный кадр. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  /* У скролл-анимации нити свой таймлайн: длительность её не спасёт. */
+  .seam-figure .shv-t {
+    animation: none !important;
+    stroke-dasharray: none !important;
+    stroke-dashoffset: 0 !important;
+  }
+}
+
+/* --- 7. Печать ------------------------------------------------------------ */
+
 @media print {
   header,
   footer {
     display: none;
+  }
+
+  body {
+    background: #fff;
+    color: #000;
+  }
+
+  body::after {
+    display: none;
+  }
+
+  .seam-figure .shv-t {
+    animation: none !important;
+    stroke-dasharray: none !important;
+    stroke-dashoffset: 0 !important;
   }
 }

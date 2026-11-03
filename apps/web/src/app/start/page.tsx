@@ -14,8 +14,7 @@ type SearchParams = Record<string, string | string[] | undefined>;
 const one = (q: SearchParams, key: string): string | undefined =>
   typeof q[key] === "string" ? (q[key] as string) : undefined;
 
-const SELECT =
-  "mt-1 block w-full rounded-lg border border-stone-300 bg-white p-2 text-stone-800 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-100";
+const SELECT = "mt-1 block w-full rounded-plate border border-hair-2 bg-paper-hi p-2 text-ink";
 
 export default async function StartPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const q = await searchParams;
@@ -50,17 +49,14 @@ export default async function StartPage({ searchParams }: { searchParams: Promis
   return (
     <div className="max-w-2xl mx-auto space-y-8">
       <div className="space-y-2">
-        <h1 className="text-3xl font-bold text-stone-900">С чего начать</h1>
-        <p className="text-stone-600 leading-relaxed">
+        <h1 className="text-3xl font-bold text-ink">С чего начать</h1>
+        <p className="text-ink-2 leading-relaxed">
           Ответьте на три вопроса — подберём проект, ткань и шов из каталога Швейки.
         </p>
       </div>
 
-      <form
-        method="get"
-        className="rounded-2xl border border-stone-200 bg-white p-6 space-y-5 dark:border-stone-700 dark:bg-stone-900"
-      >
-        <label className="block text-sm font-medium text-stone-800 dark:text-stone-200">
+      <form method="get" className="rounded-plate border border-hair bg-paper-hi p-6 space-y-5">
+        <label className="block text-sm font-medium text-ink">
           Что шьёте чаще?
           <select name="garment" defaultValue={garment ?? ""} className={SELECT}>
             <option value="">Пока не знаю</option>
@@ -72,7 +68,7 @@ export default async function StartPage({ searchParams }: { searchParams: Promis
           </select>
         </label>
 
-        <label className="block text-sm font-medium text-stone-800 dark:text-stone-200">
+        <label className="block text-sm font-medium text-ink">
           Какая ткань под рукой?
           <select name="fabric" defaultValue={fabric ?? ""} className={SELECT}>
             <option value="">Пока никакой</option>
@@ -84,7 +80,7 @@ export default async function StartPage({ searchParams }: { searchParams: Promis
           </select>
         </label>
 
-        <label className="block text-sm font-medium text-stone-800 dark:text-stone-200">
+        <label className="block text-sm font-medium text-ink">
           Шьёте на Brother LS-200s?
           <select name="own" defaultValue={own ?? "1"} className={SELECT}>
             <option value="1">Да</option>
@@ -94,7 +90,7 @@ export default async function StartPage({ searchParams }: { searchParams: Promis
 
         <button
           type="submit"
-          className="rounded-lg bg-orange-700 px-4 py-2 font-medium text-white hover:bg-orange-800"
+          className="rounded-plate bg-thread px-4 py-2 font-medium text-paper-hi hover:bg-thread-2"
         >
           Подобрать
         </button>
@@ -102,14 +98,14 @@ export default async function StartPage({ searchParams }: { searchParams: Promis
 
       {rec && (
         <section className="space-y-4" aria-live="polite">
-          <h2 className="text-xl font-semibold text-stone-900">Что советуем</h2>
+          <h2 className="text-xl font-semibold text-ink">Что советуем</h2>
 
-          <div className="rounded-2xl border border-stone-200 bg-white p-6 space-y-3 dark:border-stone-700 dark:bg-stone-900">
+          <div className="rounded-plate border border-hair bg-paper-hi p-6 space-y-3">
             {rec.project ? (
-              <p className="text-stone-800">
-                <span className="text-stone-500">Проект: </span>
+              <p className="text-ink">
+                <span className="text-ink-3">Проект: </span>
                 <Link
-                  className="font-medium underline underline-offset-4 hover:text-stone-600"
+                  className="font-medium underline underline-offset-4 hover:text-ink-2"
                   href={rec.project.href}
                 >
                   {rec.project.name}
@@ -118,13 +114,13 @@ export default async function StartPage({ searchParams }: { searchParams: Promis
             ) : null}
 
             {rec.fabrics.length > 0 && (
-              <p className="text-stone-800">
-                <span className="text-stone-500">Ткани: </span>
+              <p className="text-ink">
+                <span className="text-ink-3">Ткани: </span>
                 {rec.fabrics.map((f, i) => (
                   <span key={f.slug}>
                     {i > 0 && ", "}
                     <Link
-                      className="font-medium underline underline-offset-4 hover:text-stone-600"
+                      className="font-medium underline underline-offset-4 hover:text-ink-2"
                       href={f.href}
                     >
                       {f.name}
@@ -135,10 +131,10 @@ export default async function StartPage({ searchParams }: { searchParams: Promis
             )}
 
             {rec.seam && (
-              <p className="text-stone-800">
-                <span className="text-stone-500">Шов: </span>
+              <p className="text-ink">
+                <span className="text-ink-3">Шов: </span>
                 <Link
-                  className="font-medium underline underline-offset-4 hover:text-stone-600"
+                  className="font-medium underline underline-offset-4 hover:text-ink-2"
                   href={rec.seam.href}
                 >
                   {rec.seam.name}
@@ -147,14 +143,12 @@ export default async function StartPage({ searchParams }: { searchParams: Promis
             )}
 
             {(garmentUnknown || (!rec.project && rec.fabrics.length === 0)) && (
-              <p className="text-stone-600">
+              <p className="text-ink-2">
                 Под такой выбор в каталоге пока ничего нет — попробуйте изменить ответы.
               </p>
             )}
 
-            {rec.machineNote && (
-              <p className="text-sm text-stone-600 dark:text-stone-400">{rec.machineNote}</p>
-            )}
+            {rec.machineNote && <p className="text-sm text-ink-2">{rec.machineNote}</p>}
           </div>
         </section>
       )}

@@ -19,8 +19,8 @@ export function ProjectChecklist({ slug, items }: { slug: string; items: string[
   return (
     <section className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-xl font-semibold text-stone-900">Чек-лист</h2>
-        <span className="text-sm text-stone-500 print:hidden">
+        <h2 className="text-xl font-semibold text-ink">Чек-лист</h2>
+        <span className="text-sm text-ink-3 print:hidden">
           {loaded ? `Отмечено ${done} из ${items.length}` : ""}
         </span>
       </div>
@@ -30,18 +30,16 @@ export function ProjectChecklist({ slug, items }: { slug: string; items: string[
           const isDone = loaded && checked.includes(item);
           return (
             <li key={item}>
-              <label className="flex cursor-pointer items-start gap-3 text-stone-700 leading-relaxed">
+              <label className="flex cursor-pointer items-start gap-3 text-ink-2 leading-relaxed">
                 <input
                   type="checkbox"
                   checked={isDone}
                   onChange={() => toggle(item)}
-                  className="mt-1 h-5 w-5 shrink-0 accent-stone-900"
+                  className="mt-1 h-5 w-5 shrink-0 accent-thread"
                 />
                 <span
                   className={
-                    isDone
-                      ? "text-stone-400 line-through print:text-stone-700 print:no-underline"
-                      : ""
+                    isDone ? "text-ink-3 line-through print:text-ink-2 print:no-underline" : ""
                   }
                 >
                   {item}
@@ -58,7 +56,7 @@ export function ProjectChecklist({ slug, items }: { slug: string; items: string[
           <button
             type="button"
             onClick={() => setChecked([])}
-            className="rounded-xl px-4 py-2 text-base text-stone-600 hover:text-stone-900"
+            className="rounded-plate px-4 py-2 text-base text-ink-2 hover:text-ink"
           >
             Сбросить отметки
           </button>

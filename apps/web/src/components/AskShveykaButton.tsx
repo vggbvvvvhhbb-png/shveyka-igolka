@@ -29,7 +29,7 @@ export function AskShveykaButton({
   return (
     <Link
       href={`/assistant?${params.toString()}`}
-      className="inline-flex items-center gap-2 rounded-xl bg-stone-900 px-4 py-2 text-base text-white transition-colors hover:bg-stone-700"
+      className="inline-flex items-center gap-2 rounded-plate bg-thread px-4 py-2 text-base text-paper-hi transition-colors hover:bg-thread-2"
     >
       {label}
     </Link>

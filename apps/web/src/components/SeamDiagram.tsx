@@ -24,7 +24,7 @@ export function SeamDiagram({
       <img
         src={diagramUrl}
         alt={`Схема шва «${name}»`}
-        className="w-full max-w-md rounded-xl border border-stone-200 bg-white"
+        className="w-full max-w-md rounded-plate border border-hair bg-paper-hi"
         loading="lazy"
       />
     );
@@ -35,9 +35,14 @@ export function SeamDiagram({
   const svg = renderSeamSvg(classifySeam({ id, slug, name }), `Схема шва «${name}»`);
 
   return (
-    <div
-      className="w-full max-w-md rounded-xl border border-stone-200 bg-white p-3 text-stone-700 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300"
-      dangerouslySetInnerHTML={{ __html: svg }}
-    />
+    <figure className="seam-figure w-full max-w-md">
+      <div
+        className="rounded-plate border border-hair bg-paper-hi p-4 text-ink-2"
+        dangerouslySetInnerHTML={{ __html: svg }}
+      />
+      <figcaption className="mt-2 font-latin text-sm italic text-ink-3">
+        Табл. Схема шва «{name}»
+      </figcaption>
+    </figure>
   );
 }

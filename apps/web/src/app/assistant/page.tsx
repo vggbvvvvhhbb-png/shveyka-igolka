@@ -58,21 +58,18 @@ export default async function AssistantPage({
     <div className="space-y-6 max-w-3xl mx-auto">
       <div className="flex flex-wrap items-end justify-between gap-2">
         <div className="space-y-1">
-          <h1 className="text-3xl font-bold text-stone-900">Помощник Швейка</h1>
-          <p className="text-stone-600">
+          <h1 className="text-3xl font-bold text-ink">Помощник Швейка</h1>
+          <p className="text-ink-2">
             Отвечает по каталогу Швейки: ткани, швы, проекты и настройки машины.
           </p>
         </div>
-        <div className="flex gap-4 text-sm text-stone-600">
+        <div className="flex gap-4 text-sm text-ink-2">
           {conversationId && (
-            <Link href="/assistant" className="underline underline-offset-2 hover:text-stone-900">
+            <Link href="/assistant" className="underline underline-offset-2 hover:text-ink">
               Новый диалог
             </Link>
           )}
-          <Link
-            href="/assistant/history"
-            className="underline underline-offset-2 hover:text-stone-900"
-          >
+          <Link href="/assistant/history" className="underline underline-offset-2 hover:text-ink">
             История диалогов
           </Link>
         </div>

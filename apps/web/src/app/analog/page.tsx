@@ -108,7 +108,7 @@ export default function AnalogPage() {
         </div>
 
         <div className="space-y-2">
-          <p className="text-sm font-medium text-stone-700">Нужные свойства</p>
+          <p className="text-sm font-medium text-ink-2">Нужные свойства</p>
           <div className="flex flex-wrap gap-x-4 gap-y-1">
             {(Object.keys(TRAIT_LABELS) as Trait[]).map((t) => (
               <Check
@@ -135,33 +135,33 @@ export default function AnalogPage() {
 
       <Card title={`Найдено вариантов: ${res.analogs.length}`}>
         {res.analogs.length === 0 && (
-          <p className="text-sm text-stone-600">
+          <p className="text-sm text-ink-2">
             Ничего не нашлось. Попробуй убрать часть свойств или отключить «только дешевле».
           </p>
         )}
         <ul className="space-y-3">
           {res.analogs.map((a) => (
-            <li key={a.fabric.id} className="space-y-2 rounded-xl border border-stone-200 p-4">
+            <li key={a.fabric.id} className="space-y-2 rounded-plate border border-hair p-4">
               <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <b className="text-stone-900">{a.fabric.name}</b>
+                <b className="text-ink">{a.fabric.name}</b>
                 <span>
                   {rub(a.fabric.price)}/м
                   {a.savingsPerMeter > 0 && (
-                    <span className="text-emerald-700">
+                    <span className="text-green">
                       {" "}
                       (−{rub(a.savingsPerMeter)}, −{a.savingsPercent}%)
                     </span>
                   )}
                 </span>
               </div>
-              <p className="text-sm text-stone-600">{a.fabric.composition}</p>
+              <p className="text-sm text-ink-2">{a.fabric.composition}</p>
               <p className="text-sm">
                 👍 {a.fabric.pros}
                 <br />
                 👎 {a.fabric.cons}
               </p>
               {a.differences.length > 0 && (
-                <p className="text-xs text-stone-500">{a.differences.join(" · ")}</p>
+                <p className="text-xs text-ink-3">{a.differences.join(" · ")}</p>
               )}
               {a.fabric.shop && <p className="text-xs">Где купить: {a.fabric.shop}</p>}
               <input
@@ -171,7 +171,7 @@ export default function AnalogPage() {
                 onChange={(e) => setReviews({ ...reviews, [a.fabric.id]: e.target.value })}
               />
               <button
-                className="text-sm text-stone-700 underline"
+                className="text-sm text-ink-2 underline"
                 onClick={() => setCompareId(a.fabric.id)}
               >
                 Сравнить бок о бок
@@ -186,7 +186,7 @@ export default function AnalogPage() {
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
               <thead>
-                <tr className="border-b border-stone-200">
+                <tr className="border-b border-hair">
                   <th className="py-1 pr-2" />
                   <th className="py-1 pr-2">{res.original?.name ?? (name || "Твоя ткань")}</th>
                   <th className="py-1">{compare.fabric.name}</th>
@@ -222,7 +222,7 @@ export default function AnalogPage() {
                     ],
                   ] as const
                 ).map(([label, left, right]) => (
-                  <tr key={label} className="border-b border-stone-100 align-top">
+                  <tr key={label} className="border-b border-hair align-top">
                     <td className="py-1 pr-2 font-medium">{label}</td>
                     <td className="py-1 pr-2">{left}</td>
                     <td className="py-1">{right}</td>

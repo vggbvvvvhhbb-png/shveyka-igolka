@@ -173,7 +173,7 @@ export default function CalculatorPage() {
             </div>
           ))}
         </div>
-        <p className="text-xs text-stone-500">Отметь несколько ширин, чтобы сравнить.</p>
+        <p className="text-xs text-ink-3">Отметь несколько ширин, чтобы сравнить.</p>
       </Card>
 
       {result ? (
@@ -194,18 +194,18 @@ export default function CalculatorPage() {
           </ul>
 
           {result.bestByCost && result.savings ? (
-            <p className="rounded-xl bg-white p-3">
+            <p className="rounded-plate bg-paper-hi p-3">
               Бери ширину <b>{result.bestByCost.widthCm} см</b> — сэкономишь{" "}
               <b>{rub(result.savings.rub)}</b> по сравнению с {result.savings.versusWidthCm} см.
             </p>
           ) : (
-            <p className="text-sm text-stone-600">
+            <p className="text-sm text-ink-2">
               Меньше всего ткани уходит при ширине {result.bestByMeters.widthCm} см. Введи цены,
               чтобы сравнить стоимость.
             </p>
           )}
 
-          <ul className="list-disc space-y-1 pl-5 text-sm text-stone-600">
+          <ul className="list-disc space-y-1 pl-5 text-sm text-ink-2">
             {result.notes.map((n) => (
               <li key={n}>{n}</li>
             ))}
@@ -235,11 +235,11 @@ export default function CalculatorPage() {
                   {s.title} · {s.date}
                 </span>
                 <span className="flex gap-3">
-                  <button className="text-stone-700 underline" onClick={() => setShopMode(s)}>
+                  <button className="text-ink-2 underline" onClick={() => setShopMode(s)}>
                     Показать в магазине
                   </button>
                   <button
-                    className="text-stone-500 underline"
+                    className="text-ink-3 underline"
                     onClick={() => setSaved(saved.filter((x) => x.id !== s.id))}
                   >
                     Удалить
@@ -253,15 +253,15 @@ export default function CalculatorPage() {
 
       {shopMode && (
         <div
-          className="fixed inset-0 z-20 flex items-center justify-center bg-black/60 p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
           onClick={() => setShopMode(null)}
         >
-          <div className="max-w-md space-y-3 rounded-2xl bg-white p-6 text-xl">
-            <h2 className="text-2xl font-semibold text-stone-900">{shopMode.title}</h2>
+          <div className="max-w-md space-y-3 rounded-plate bg-paper-hi p-6 text-xl">
+            <h2 className="text-2xl font-semibold text-ink">{shopMode.title}</h2>
             {shopMode.lines.map((l) => (
               <p key={l}>{l}</p>
             ))}
-            <p className="text-sm text-stone-500">Нажми, чтобы закрыть</p>
+            <p className="text-sm text-ink-3">Нажми, чтобы закрыть</p>
           </div>
         </div>
       )}

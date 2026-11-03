@@ -59,16 +59,14 @@ export default async function JournalPage({
   return (
     <div className="space-y-8 max-w-3xl mx-auto">
       <div className="flex flex-wrap items-end justify-between gap-2">
-        <h1 className="text-3xl font-bold text-stone-900">Журнал шитья</h1>
+        <h1 className="text-3xl font-bold text-ink">Журнал шитья</h1>
         <nav aria-label="Год" className="flex flex-wrap gap-2 text-sm">
           {years.map((option) => (
             <Link
               key={option}
               href={`/journal?y=${option}`}
               className={`rounded-full px-3 py-1 ${
-                option === year
-                  ? "bg-stone-900 text-white"
-                  : "bg-stone-100 text-stone-700 hover:bg-stone-200"
+                option === year ? "bg-thread text-paper-hi" : "bg-wash text-ink-2 hover:bg-wash-2"
               }`}
             >
               {option}
@@ -79,16 +77,16 @@ export default async function JournalPage({
 
       <section className="grid gap-3 sm:grid-cols-3">
         {cards.map((card) => (
-          <div key={card.label} className="rounded-2xl border border-stone-200 bg-white p-4">
-            <p className="text-sm text-stone-500">{card.label}</p>
-            <p className="text-2xl font-semibold text-stone-900">{card.value}</p>
-            {card.hint && <p className="mt-1 text-xs text-stone-500">{card.hint}</p>}
+          <div key={card.label} className="rounded-plate border border-hair bg-paper-hi p-4">
+            <p className="text-sm text-ink-3">{card.label}</p>
+            <p className="text-2xl font-semibold text-ink">{card.value}</p>
+            {card.hint && <p className="mt-1 text-xs text-ink-3">{card.hint}</p>}
           </div>
         ))}
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-xl font-semibold text-stone-900">По месяцам</h2>
+        <h2 className="text-xl font-semibold text-ink">По месяцам</h2>
         <div
           className="flex h-32 items-end gap-1"
           role="img"
@@ -99,23 +97,23 @@ export default async function JournalPage({
               key={MONTHS[month]}
               className="flex flex-1 flex-col items-center justify-end gap-1"
             >
-              <span className="text-xs text-stone-500">{count > 0 ? count : ""}</span>
+              <span className="text-xs text-ink-3">{count > 0 ? count : ""}</span>
               <div
-                className="w-full rounded-t bg-stone-700"
+                className="w-full rounded-t bg-thread-2"
                 style={{ height: `${(count / maxMonth) * 100}%`, minHeight: count > 0 ? 4 : 1 }}
               />
-              <span className="text-xs text-stone-500">{MONTHS[month]}</span>
+              <span className="text-xs text-ink-3">{MONTHS[month]}</span>
             </div>
           ))}
         </div>
         {stats.topFabrics.length > 0 && (
-          <p className="text-stone-700">
+          <p className="text-ink-2">
             Чаще всего шила из:{" "}
             {stats.topFabrics.map((f) => `${names.get(f.slug) ?? f.slug} (${f.count})`).join(", ")}
           </p>
         )}
         {stats.giftCount > 0 && (
-          <p className="text-stone-600">
+          <p className="text-ink-2">
             Подарков: {stats.giftCount} на {money.format(stats.giftSpent)} ₽ — в экономию они не
             входят.
           </p>
@@ -125,22 +123,22 @@ export default async function JournalPage({
       <JournalForm fabrics={fabrics.map((fabric) => ({ slug: fabric.id, name: fabric.name }))} />
 
       <section className="space-y-3">
-        <h2 className="text-xl font-semibold text-stone-900">Вещи за {year}</h2>
+        <h2 className="text-xl font-semibold text-ink">Вещи за {year}</h2>
         {yearItems.length === 0 ? (
-          <p className="text-stone-600">За этот год записей нет.</p>
+          <p className="text-ink-2">За этот год записей нет.</p>
         ) : (
-          <ul className="divide-y divide-stone-200 rounded-2xl border border-stone-200 bg-white">
+          <ul className="divide-y divide-hair rounded-plate border border-hair bg-paper-hi">
             {yearItems.map((item) => (
               <li
                 key={item.id}
                 className="flex flex-wrap items-center justify-between gap-2 px-4 py-3"
               >
                 <div className="space-y-0.5">
-                  <p className="text-stone-900">
+                  <p className="text-ink">
                     {item.gift ? "🎁 " : ""}
                     {item.name}
                   </p>
-                  <p className="text-sm text-stone-500">
+                  <p className="text-sm text-ink-3">
                     {dateFormat.format(item.sewnAt)}
                     {item.fabricSlug ? ` · ${names.get(item.fabricSlug) ?? item.fabricSlug}` : ""}
                     {` · ${money.format(item.cost)} ₽`}

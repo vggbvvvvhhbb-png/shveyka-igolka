@@ -24,23 +24,20 @@ export function ProjectCard({ project }: { project: Project }) {
   const mainFabric = (project.materials as { main_fabric: string }).main_fabric;
 
   return (
-    <Link
-      href={`/projects/${project.id}`}
-      className="block rounded-2xl border border-stone-200 bg-white p-5 transition-colors hover:bg-stone-50 hover:border-stone-300"
-    >
-      <h3 className="text-lg font-semibold text-stone-900 mb-1">{project.name}</h3>
+    <Link href={`/projects/${project.id}`} className="card-plate p-5">
+      <h3 className="mb-1 font-title text-xl font-bold text-green">{project.name}</h3>
 
-      <p className="text-sm text-stone-500 mb-3">
+      <p className="mb-3 text-sm text-ink-3">
         {categoryLabels[project.category] ?? project.category} · {timeLabel}
       </p>
 
-      <p className="text-stone-600 leading-relaxed line-clamp-3 mb-4">{mainFabric}</p>
+      <p className="mb-4 line-clamp-3 leading-relaxed text-ink-2">{mainFabric}</p>
 
       <div className="flex items-center gap-2 text-sm">
-        <span className="text-amber-600" aria-hidden="true">
+        <span className="text-orange" aria-hidden="true">
           {difficulty.dots}
         </span>
-        <span className="text-stone-500">{difficulty.label}</span>
+        <span className="text-ink-3">{difficulty.label}</span>
       </div>
     </Link>
   );

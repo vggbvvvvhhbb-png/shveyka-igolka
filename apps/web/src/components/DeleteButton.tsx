@@ -44,12 +44,12 @@ export function DeleteButton({
         disabled={busy}
         onClick={() => (confirming ? void remove() : setConfirming(true))}
         onBlur={() => setConfirming(false)}
-        className="text-sm text-stone-500 underline underline-offset-2 hover:text-red-700 disabled:opacity-40"
+        className="text-sm text-ink-3 underline underline-offset-2 hover:text-thread disabled:opacity-40"
       >
         {confirming ? "Точно удалить?" : label}
       </button>
       {error && (
-        <span role="alert" className="text-sm text-red-700">
+        <span role="alert" className="text-sm text-thread">
           {error}
         </span>
       )}

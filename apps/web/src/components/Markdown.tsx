@@ -60,10 +60,10 @@ function Block({
     case "heading": {
       const size =
         block.level <= 2
-          ? "text-base font-semibold text-stone-900"
+          ? "text-base font-semibold text-ink"
           : block.level === 3
-            ? "text-sm font-semibold text-stone-900"
-            : "text-sm font-medium text-stone-700";
+            ? "text-sm font-semibold text-ink"
+            : "text-sm font-medium text-ink-2";
       return <p className={size}>{inline(block.text)}</p>;
     }
     case "list": {
@@ -73,21 +73,21 @@ function Block({
         </li>
       ));
       return block.ordered ? (
-        <ol className="list-inside list-decimal space-y-1 text-stone-800">{items}</ol>
+        <ol className="list-inside list-decimal space-y-1 text-ink">{items}</ol>
       ) : (
-        <ul className="list-inside list-disc space-y-1 text-stone-800">{items}</ul>
+        <ul className="list-inside list-disc space-y-1 text-ink">{items}</ul>
       );
     }
     case "quote":
       return (
-        <blockquote className="border-l-2 border-stone-300 pl-3 italic text-stone-600">
+        <blockquote className="border-l-2 border-hair-2 pl-3 italic text-ink-2">
           {inline(block.text)}
         </blockquote>
       );
     case "rule":
-      return <hr className="border-stone-200" />;
+      return <hr className="border-hair" />;
     default:
-      return <p className="leading-relaxed text-stone-800">{inline(block.text)}</p>;
+      return <p className="leading-relaxed text-ink">{inline(block.text)}</p>;
   }
 }
 
@@ -107,7 +107,7 @@ function Inline({
         switch (part.kind) {
           case "bold":
             return (
-              <strong key={index} className="font-semibold text-stone-900">
+              <strong key={index} className="font-semibold text-ink">
                 {part.text}
               </strong>
             );
@@ -119,7 +119,7 @@ function Inline({
             );
           case "code":
             return (
-              <code key={index} className="rounded bg-stone-200 px-1 py-0.5 text-[0.9em]">
+              <code key={index} className="rounded bg-wash-2 px-1 py-0.5 text-[0.9em]">
                 {part.text}
               </code>
             );
@@ -133,7 +133,7 @@ function Inline({
                 key={index}
                 href={`#source-${number}`}
                 title={`Источник ${number}`}
-                className="mx-0.5 rounded bg-stone-200 px-1 text-[0.75em] font-medium text-stone-600 no-underline hover:bg-stone-300"
+                className="mx-0.5 rounded bg-wash-2 px-1 text-[0.75em] font-medium text-ink-2 no-underline hover:bg-wash-2"
               >
                 {number}
               </a>
@@ -151,7 +151,7 @@ function Inline({
                 <Link
                   key={index}
                   href={part.href}
-                  className="underline underline-offset-2 hover:text-stone-600"
+                  className="underline underline-offset-2 hover:text-ink-2"
                 >
                   {part.text}
                 </Link>
@@ -166,7 +166,7 @@ function Inline({
                 href={part.href}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="underline underline-offset-2 hover:text-stone-600"
+                className="underline underline-offset-2 hover:text-ink-2"
               >
                 {part.text}
               </a>

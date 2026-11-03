@@ -16,8 +16,8 @@ export function SourceList({ sources }: { sources: Source[] }) {
   if (sources.length === 0) return null;
 
   return (
-    <div className="rounded-xl border border-stone-200 bg-white p-3">
-      <p className="text-sm text-stone-500">Источники</p>
+    <div className="rounded-plate border border-hair bg-paper-hi p-3">
+      <p className="text-sm text-ink-3">Источники</p>
       <ol className="mt-2 space-y-2.5">
         {sources.map((source, index) => {
           const safe = isSafeSourceUrl(source.url);
@@ -32,7 +32,7 @@ export function SourceList({ sources }: { sources: Source[] }) {
               className="scroll-mt-4 text-sm leading-snug"
             >
               <div className="flex items-start gap-2">
-                <span className="mt-0.5 shrink-0 rounded bg-stone-100 px-1.5 py-0.5 text-xs font-medium text-stone-500">
+                <span className="mt-0.5 shrink-0 rounded bg-wash px-1.5 py-0.5 text-xs font-medium text-ink-3">
                   {index + 1}
                 </span>
                 <div className="min-w-0">
@@ -41,21 +41,21 @@ export function SourceList({ sources }: { sources: Source[] }) {
                       href={source.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="font-medium text-stone-800 underline underline-offset-2 hover:text-stone-600"
+                      className="font-medium text-ink underline underline-offset-2 hover:text-ink-2"
                     >
                       {source.title}
                     </a>
                   ) : (
-                    <span className="font-medium text-stone-700">{source.title}</span>
+                    <span className="font-medium text-ink-2">{source.title}</span>
                   )}
                   {(domain || date) && (
-                    <div className="mt-0.5 flex flex-wrap gap-x-2 text-xs text-stone-400">
+                    <div className="mt-0.5 flex flex-wrap gap-x-2 text-xs text-ink-3">
                       {domain && <span>{domain}</span>}
                       {date && <span>{date}</span>}
                     </div>
                   )}
                   {snippet && (
-                    <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-stone-500">
+                    <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-ink-3">
                       {snippet}
                     </p>
                   )}

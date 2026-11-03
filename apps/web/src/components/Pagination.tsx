@@ -50,9 +50,9 @@ export function Pagination({ page, totalPages, query, basePath = "/fabrics" }: P
   const hasNext = page < totalPages;
 
   const linkClass =
-    "inline-flex items-center rounded-xl border border-stone-300 px-4 py-2 text-base text-stone-700 transition-colors hover:bg-stone-100";
+    "inline-flex items-center rounded-plate border border-hair-2 px-4 py-2 text-base text-ink-2 transition-colors hover:bg-wash";
   const disabledClass =
-    "inline-flex items-center rounded-xl border border-stone-200 px-4 py-2 text-base text-stone-300";
+    "inline-flex items-center rounded-plate border border-hair px-4 py-2 text-base text-ink-3";
 
   return (
     <nav aria-label="Постраничная навигация" className="flex items-center justify-between gap-4">
@@ -64,7 +64,7 @@ export function Pagination({ page, totalPages, query, basePath = "/fabrics" }: P
         <span className={disabledClass}>← Назад</span>
       )}
 
-      <span className="text-sm text-stone-500">
+      <span className="text-sm text-ink-3">
         Страница {page} из {totalPages}
       </span>
 

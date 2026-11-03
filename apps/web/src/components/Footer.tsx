@@ -1,8 +1,95 @@
+import Link from "next/link";
+import { ThemeToggle } from "@/components/ThemeToggle";
+
+/**
+ * Подвал «Выходные данные».
+ *
+ * Тонкие колонки с разделами справочника и едва заметный контур иглы с
+ * ниткой на фоне — как на полях старой книги.
+ */
+
+const columns = [
+  {
+    title: "Справочник",
+    links: [
+      { href: "/fabrics", label: "Ткани" },
+      { href: "/seams", label: "Швы" },
+      { href: "/projects", label: "Проекты" },
+    ],
+  },
+  {
+    title: "Расчёты",
+    links: [
+      { href: "/calculator", label: "Раскрой" },
+      { href: "/profit", label: "Выгода" },
+      { href: "/analog", label: "Аналог ткани" },
+      { href: "/hardware", label: "Фурнитура" },
+      { href: "/care", label: "Уход" },
+    ],
+  },
+  {
+    title: "Помощь",
+    links: [
+      { href: "/start", label: "С чего начать" },
+      { href: "/measurements", label: "Мерки" },
+      { href: "/assistant", label: "Помощник Швейка" },
+    ],
+  },
+];
+
+/** Контур иглы с ниткой — фоном подвала. */
+function NeedleContour() {
+  return (
+    <svg
+      viewBox="0 0 200 120"
+      className="pointer-events-none absolute -right-6 bottom-0 h-28 w-48 text-ink opacity-[0.08]"
+      aria-hidden="true"
+      fill="none"
+    >
+      <path d="M14 106 150 16" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+      <path d="M150 16 168 2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+      <path
+        d="M144 22c26 8 36 28 28 48-7 18-30 26-46 18-12-6-16-18-12-28"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+      />
+      <path d="M14 106 2 114" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 export function Footer() {
   return (
-    <footer className="border-t border-stone-200 bg-stone-50 mt-auto">
-      <div className="max-w-5xl mx-auto px-4 py-6 text-center text-sm text-stone-500">
-        Швейка · справочник для шитья
+    <footer className="relative mt-auto overflow-hidden border-t border-hair bg-wash">
+      <NeedleContour />
+      <div className="relative mx-auto max-w-5xl px-4 py-10">
+        <div className="grid grid-cols-2 gap-8 sm:grid-cols-3">
+          {columns.map((column) => (
+            <div key={column.title}>
+              <h2 className="plate-label mb-3">{column.title}</h2>
+              <ul className="space-y-1.5">
+                {column.links.map((link) => (
+                  <li key={link.href}>
+                    <Link
+                      href={link.href}
+                      className="text-sm text-ink-2 transition-colors hover:text-green"
+                    >
+                      {link.label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-10 flex flex-col gap-4 border-t border-hair pt-4 sm:flex-row sm:items-center sm:justify-between">
+          <p className="font-latin text-sm italic text-ink-3">
+            Швейка · Атлас домашнего шитья · MMXXVI
+          </p>
+          <ThemeToggle />
+        </div>
       </div>
     </footer>
   );

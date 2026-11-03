@@ -15,20 +15,20 @@ export default function ProjectsError({
   }, [error]);
 
   return (
-    <div className="max-w-xl space-y-4 rounded-2xl border border-stone-200 bg-white p-6">
-      <h1 className="text-2xl font-bold text-stone-900">Что-то пошло не так</h1>
-      <p className="text-stone-600">Не удалось загрузить каталог проектов. Попробуйте ещё раз.</p>
+    <div className="max-w-xl space-y-4 rounded-plate border border-hair bg-paper-hi p-6">
+      <h1 className="text-2xl font-bold text-ink">Что-то пошло не так</h1>
+      <p className="text-ink-2">Не удалось загрузить каталог проектов. Попробуйте ещё раз.</p>
 
       <div className="flex flex-wrap gap-3">
         <button
           onClick={() => reset()}
-          className="rounded-xl bg-stone-900 px-4 py-2 text-base text-white transition-colors hover:bg-stone-700"
+          className="rounded-plate bg-thread px-4 py-2 text-base text-paper-hi transition-colors hover:bg-thread-2"
         >
           Повторить
         </button>
         <Link
           href="/"
-          className="rounded-xl border border-stone-300 px-4 py-2 text-base text-stone-700 transition-colors hover:bg-stone-100"
+          className="rounded-plate border border-hair-2 px-4 py-2 text-base text-ink-2 transition-colors hover:bg-wash"
         >
           На главную
         </Link>

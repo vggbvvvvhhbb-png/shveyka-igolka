@@ -1,5 +1,3 @@
-"use client";
-
 import Link from "next/link";
 import { splitHighlightedText } from "@shveyka/core";
 import type { Fabric } from "@shveyka/db";
@@ -36,7 +34,7 @@ function HighlightedText({ text, query }: { text: string; query?: string }) {
     <>
       {splitHighlightedText(text, query).map((part, index) =>
         part.highlighted ? (
-          <mark key={index} className="rounded bg-stone-200 px-0.5 text-stone-900">
+          <mark key={index} className="rounded-sm bg-gold-wash px-0.5 text-ink">
             {part.text}
           </mark>
         ) : (
@@ -48,7 +46,9 @@ function HighlightedText({ text, query }: { text: string; query?: string }) {
 }
 
 /**
- * Карточка ткани. В query приходит поисковый запрос со страницы каталога:
+ * Карточка ткани — «гербарный лист» с этикеткой.
+ *
+ * В query приходит поисковый запрос со страницы каталога:
  * совпадения с ним подсвечиваются в названии и составе.
  */
 export function FabricCard({ fabric, query }: { fabric: Fabric; query?: string }) {
@@ -60,28 +60,25 @@ export function FabricCard({ fabric, query }: { fabric: Fabric; query?: string }
   const shortDesc = fabric.composition;
 
   return (
-    <Link
-      href={`/fabrics/${fabric.id}`}
-      className="block rounded-2xl border border-stone-200 bg-white p-5 transition-colors hover:bg-stone-50 hover:border-stone-300"
-    >
-      <h3 className="text-lg font-semibold text-stone-900 mb-1">
+    <Link href={`/fabrics/${fabric.id}`} className="card-plate p-5">
+      <h3 className="mb-1 font-title text-xl font-bold text-green">
         <HighlightedText text={fabric.name} query={query} />
       </h3>
 
-      <p className="text-sm text-stone-500 mb-3">
+      <p className="mb-3 text-sm text-ink-3">
         {categoryLabels[fabric.category] ?? fabric.category} ·{" "}
         {weightLabels[fabric.weight_class] ?? fabric.weight_class}
       </p>
 
-      <p className="text-stone-600 leading-relaxed line-clamp-3 mb-4">
+      <p className="mb-4 line-clamp-3 leading-relaxed text-ink-2">
         <HighlightedText text={shortDesc} query={query} />
       </p>
 
       <div className="flex items-center gap-2 text-sm">
-        <span className="text-amber-600" aria-hidden="true">
+        <span className="text-orange" aria-hidden="true">
           {difficulty.dots}
         </span>
-        <span className="text-stone-500">{difficulty.label}</span>
+        <span className="text-ink-3">{difficulty.label}</span>
       </div>
     </Link>
   );

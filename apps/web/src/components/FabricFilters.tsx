@@ -77,15 +77,17 @@ export function FabricFilters() {
           value={q}
           onChange={(e) => setQ((e.currentTarget as unknown as HTMLInputElement).value)}
           placeholder="Найти ткань…"
-          className="w-full rounded-xl border border-stone-300 bg-white px-4 py-2 text-base text-stone-800 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-stone-300"
+          className="w-full rounded-plate border border-hair-2 bg-paper-hi px-4 py-2 text-base text-ink placeholder:text-ink-3 focus:ring-2 focus:ring-hair-2"
         />
       </div>
 
       <div className="flex gap-3 flex-wrap">
         <select
           value={category}
-          onChange={(e) => updateParams({ category: (e.currentTarget as unknown as HTMLSelectElement).value })}
-          className="rounded-xl border border-stone-300 bg-white px-3 py-2 text-base text-stone-800 focus:outline-none focus:ring-2 focus:ring-stone-300"
+          onChange={(e) =>
+            updateParams({ category: (e.currentTarget as unknown as HTMLSelectElement).value })
+          }
+          className="rounded-plate border border-hair-2 bg-paper-hi px-3 py-2 text-base text-ink focus:ring-2 focus:ring-hair-2"
         >
           {categoryOptions.map((o) => (
             <option key={o.value} value={o.value}>
@@ -96,8 +98,10 @@ export function FabricFilters() {
 
         <select
           value={weight}
-          onChange={(e) => updateParams({ weight: (e.currentTarget as unknown as HTMLSelectElement).value })}
-          className="rounded-xl border border-stone-300 bg-white px-3 py-2 text-base text-stone-800 focus:outline-none focus:ring-2 focus:ring-stone-300"
+          onChange={(e) =>
+            updateParams({ weight: (e.currentTarget as unknown as HTMLSelectElement).value })
+          }
+          className="rounded-plate border border-hair-2 bg-paper-hi px-3 py-2 text-base text-ink focus:ring-2 focus:ring-hair-2"
         >
           {weightOptions.map((o) => (
             <option key={o.value} value={o.value}>
@@ -108,8 +112,10 @@ export function FabricFilters() {
 
         <select
           value={stretch}
-          onChange={(e) => updateParams({ stretch: (e.currentTarget as unknown as HTMLSelectElement).value })}
-          className="rounded-xl border border-stone-300 bg-white px-3 py-2 text-base text-stone-800 focus:outline-none focus:ring-2 focus:ring-stone-300"
+          onChange={(e) =>
+            updateParams({ stretch: (e.currentTarget as unknown as HTMLSelectElement).value })
+          }
+          className="rounded-plate border border-hair-2 bg-paper-hi px-3 py-2 text-base text-ink focus:ring-2 focus:ring-hair-2"
         >
           {stretchOptions.map((o) => (
             <option key={o.value} value={o.value}>
@@ -125,7 +131,7 @@ export function FabricFilters() {
             setQ("");
             router.replace(pathname, { scroll: false });
           }}
-          className="rounded-xl border border-stone-300 px-4 py-2 text-base text-stone-600 hover:bg-stone-100 transition-colors"
+          className="rounded-plate border border-hair-2 px-4 py-2 text-base text-ink-2 hover:bg-wash transition-colors"
         >
           Сбросить фильтры
         </button>
