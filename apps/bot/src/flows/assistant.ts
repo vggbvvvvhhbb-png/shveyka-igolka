@@ -82,9 +82,11 @@ async function showCatalogAnswer(ctx: MyContext, text: string): Promise<void> {
 /** Спрашивает помощника и показывает ответ. */
 async function ask(ctx: MyContext, mode: string, question: string): Promise<void> {
   const conversationId = ctx.session.conversationId ?? null;
+  // Кто спрашивает: по этому в отчёте видно, кто потратил токены.
+  const user = ctx.from ? { id: ctx.from.id, name: ctx.from.first_name } : null;
 
   if (isWebMode(mode)) {
-    const result = await askWeb(question, mode, conversationId);
+    const result = await askWeb(question, mode, conversationId, user);
     if (!result.ok) {
       await ctx.reply(failureText(result.reason));
       return;
@@ -94,7 +96,7 @@ async function ask(ctx: MyContext, mode: string, question: string): Promise<void
     return;
   }
 
-  const result = await askCatalog(question, conversationId);
+  const result = await askCatalog(question, conversationId, user);
   if (!result.ok) {
     await ctx.reply(failureText(result.reason));
     return;

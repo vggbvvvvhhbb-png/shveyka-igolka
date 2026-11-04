@@ -76,7 +76,7 @@ jobs:
           # в порядке.
           built=0
           for attempt in 1 2; do
-            if docker compose build web bot; then
+            if docker compose build web bot admin-bot; then
               built=1
               break
             fi
@@ -99,7 +99,7 @@ jobs:
 
           # caddy перезапускается вместе с остальными: в нём живёт Caddyfile,
           # и без перезапуска новые правила домена не применяются.
-          docker compose up -d web bot caddy
+          docker compose up -d web bot admin-bot caddy
 
           # Caddyfile подключён как файл: контейнер видит новый файл сразу,
           # но сам конфиг перечитывает только при перезапуске. Поэтому

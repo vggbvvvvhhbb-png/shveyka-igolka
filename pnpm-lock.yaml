@@ -87,6 +87,34 @@ importers:
         specifier: ^2.1.0
         version: 2.1.9(@types/node@20.19.39)(jsdom@26.1.0)(lightningcss@1.32.0)(msw@2.13.5(@types/node@20.19.39)(typescript@5.9.3))
 
+  apps/admin-bot:
+    dependencies:
+      '@shveyka/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@shveyka/db':
+        specifier: workspace:*
+        version: link:../../packages/db
+      dotenv:
+        specifier: 'catalog:'
+        version: 16.6.1
+      grammy:
+        specifier: 'catalog:'
+        version: 1.46.0
+    devDependencies:
+      '@types/node':
+        specifier: ^20.0.0
+        version: 20.19.39
+      tsx:
+        specifier: 'catalog:'
+        version: 4.23.15
+      typescript:
+        specifier: 'catalog:'
+        version: 5.9.3
+      vitest:
+        specifier: 'catalog:'
+        version: 2.1.9(@types/node@20.19.39)(jsdom@26.1.0)(lightningcss@1.32.0)(msw@2.13.5(@types/node@20.19.39)(typescript@5.9.3))
+
   apps/bot:
     dependencies:
       '@grammyjs/storage-file':

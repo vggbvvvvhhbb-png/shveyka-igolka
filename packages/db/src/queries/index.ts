@@ -14,4 +14,5 @@ export * from "./measurements";
 export * from "./feedback";
 export * from "./sewn";
 export * from "./contacts";
+export * from "./usage";
 export * from "./matchData";

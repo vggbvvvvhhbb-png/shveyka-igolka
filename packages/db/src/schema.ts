@@ -303,3 +303,54 @@ export const contactRequests = pgTable(
     index("contact_requests_topic_idx").on(table.topic),
   ]
 );
+
+// ============================================================================
+// AI USAGE
+// ============================================================================
+
+/**
+ * Расход токенов по обращениям к помощнику.
+ *
+ * По этой таблице владелец видит, кто пользовался помощником, каким режимом
+ * и сколько токенов на это ушло. Запись появляется на каждый ответ: и для
+ * сайта, и для Telegram-бота — бот спрашивает тот же API.
+ */
+export const aiUsage = pgTable(
+  "ai_usage",
+  {
+    id: text("id").primaryKey(),
+    /**
+     * Кто спрашивал: `tg:<id>` для Telegram-бота, `web:<id>` для сайта.
+     * Идентификатор анонимный: личных данных человека тут нет.
+     */
+    user_key: text("user_key").notNull(),
+    /** Как обращаться к человеку, если это известно (имя или ник в Telegram). */
+    user_label: text("user_label"),
+    /** Откуда пришёл запрос: `web` или `bot`. */
+    source: text("source").notNull(),
+    /** Чем воспользовались: `catalog`, `search`, `reason` или `research`. */
+    feature: text("feature").notNull(),
+    /** Режим ответа: `short`, `steps` или `why`. */
+    mode: text("mode"),
+    /** Модель, которая дала ответ. */
+    model: text("model"),
+    /** Токены вопроса вместе с системным промтом и контекстом. */
+    prompt_tokens: integer("prompt_tokens").notNull().default(0),
+    /** Токены ответа. */
+    completion_tokens: integer("completion_tokens").notNull().default(0),
+    /** Всего токенов. */
+    total_tokens: integer("total_tokens").notNull().default(0),
+    /** Счётчик пришёл от провайдера или посчитан приблизительно. */
+    estimated: boolean("estimated").notNull().default(false),
+    /** Ответ взят из кэша: модель не звали, токены не потрачены. */
+    cached: boolean("cached").notNull().default(false),
+    /** Диалог, в котором был задан вопрос. */
+    conversation_id: text("conversation_id"),
+    created_at: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("ai_usage_created_at_idx").on(table.created_at),
+    index("ai_usage_user_key_idx").on(table.user_key),
+    index("ai_usage_feature_idx").on(table.feature),
+  ]
+);

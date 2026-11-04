@@ -23,6 +23,7 @@ import { clientIp, limitRequest } from "@/lib/guard";
 import { requestIsOwner } from "@/lib/owner";
 import { loadCatalog, poolOf } from "@/lib/catalog";
 import { saveAssistantTurn, saveUserTurn } from "@/lib/chatHistory";
+import { resolveUsageUser } from "@/lib/usage";
 
 export const dynamic = "force-dynamic";
 
@@ -92,6 +93,10 @@ export async function POST(req: Request): Promise<Response> {
   }
 
   const { message, mode, style, ctx } = parsed.data;
+
+  // Кто спрашивает: у сайта это анонимная cookie, у бота — идентификатор
+  // Telegram. Нужен для отчёта о расходе токенов.
+  const usageUser = resolveUsageUser(req);
 
   // Режим «Каталог» живёт в /api/chat: там ответ идёт потоком и кэшируется.
   if (!isWebWorkMode(mode)) {
@@ -186,6 +191,21 @@ export async function POST(req: Request): Promise<Response> {
       );
     }
 
+    // Расход токенов режима: планировщик поиска плюс ответ модели.
+    await queries.recordUsage(db, {
+      userKey: usageUser.userKey,
+      userLabel: usageUser.userLabel,
+      source: usageUser.source,
+      feature: mode,
+      mode: style ?? null,
+      model: result.model,
+      promptTokens: result.usage.promptTokens,
+      completionTokens: result.usage.completionTokens,
+      totalTokens: result.usage.totalTokens,
+      estimated: result.usage.totalTokens === 0,
+      conversationId: savedId,
+    });
+
     return NextResponse.json(
       {
         answer: result.answer,
@@ -208,6 +228,9 @@ export async function POST(req: Request): Promise<Response> {
           // ссылки на каталог кликабельными.
           "X-Context-Slugs": buildContextSlugsHeader(prep.context),
           "X-Request-Id": requestId,
+          // Анонимный идентификатор посетителя: без него в отчёте не собрать
+          // расход по людям.
+          ...(usageUser.setCookie ? { "Set-Cookie": usageUser.setCookie } : {}),
           ...(savedId ? { "X-Conversation-Id": savedId, "X-Message-Id": assistantMessageId } : {}),
         },
       }

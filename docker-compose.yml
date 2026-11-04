@@ -3,6 +3,7 @@
 # Перед запуском проверь, что есть файлы с переменными:
 #   .env                — общие настройки (DATABASE_URL, ключи AI)
 #   apps/bot/.env       — BOT_TOKEN, SITE_URL, DATA_DIR
+#   apps/admin-bot/.env — ADMIN_BOT_TOKEN, ADMIN_CHAT_ID
 #
 # Запуск: docker compose up -d --build
 
@@ -56,7 +57,23 @@ services:
     depends_on:
       - web
 
+  admin-bot:
+    build:
+      context: .
+      dockerfile: Dockerfile.admin-bot
+    env_file:
+      - .env
+      - apps/admin-bot/.env
+    volumes:
+      # Чат владельца запоминается на диске: он переживает пересборку
+      - admin-bot-data:/app/apps/admin-bot/data
+    restart: unless-stopped
+    # init: tini становится PID 1 и передаёт боту SIGTERM —
+    # бот корректно завершает long polling
+    init: true
+
 volumes:
   bot-data:
+  admin-bot-data:
   caddy_data:
   caddy_config:

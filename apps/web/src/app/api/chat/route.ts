@@ -6,11 +6,13 @@ import {
   collectContextSlugs,
   collectRelatedCards,
   createRequestId,
+  estimateUsage,
   groupContext,
   hasMeasurements,
   isCacheable,
   isValidatedRequest,
   looksTruncated,
+  mergeUsage,
   parseAnswer,
   parseSSEPiece,
   prepareChat,
@@ -23,6 +25,7 @@ import {
   CONTINUE_NOTE,
   type ChatMessage,
   type ChatProvider,
+  type TokenUsage,
 } from "@shveyka/core";
 import { getDbSingleton, queries } from "@shveyka/db";
 import { errorResponse, logFailure } from "@/lib/apiResponse";
@@ -30,6 +33,7 @@ import { clientIp, limitRequest } from "@/lib/guard";
 import { requestIsOwner } from "@/lib/owner";
 import { loadCatalog, poolOf } from "@/lib/catalog";
 import { saveAssistantTurn, saveUserTurn } from "@/lib/chatHistory";
+import { resolveUsageUser } from "@/lib/usage";
 
 export const dynamic = "force-dynamic";
 
@@ -106,17 +110,21 @@ async function streamFromProvider(
  * дописать (например, пометку об обрыве ответа). Он же сохраняет ответ
  * в истории — до закрытия потока, чтобы к моменту, когда клиент увидел
  * конец ответа, сообщение уже лежало в базе и его можно было оценить.
+ *
+ * Счётчик токенов провайдера копится по ходу потока и передаётся в `onDone`:
+ * по нему считается, сколько стоил ответ.
  */
 function toTextStream(
   upstream: ReadableStream<Uint8Array>,
   provider: ChatProvider,
-  onDone: (full: string, finishReason: string | null) => Promise<string>
+  onDone: (full: string, finishReason: string | null, usage: TokenUsage | null) => Promise<string>
 ): ReadableStream<Uint8Array> {
   const decoder = new TextDecoder();
   const encoder = new TextEncoder();
   let buffer = "";
   let full = "";
   let finishReason: string | null = null;
+  let usage: TokenUsage | null = null;
 
   return new ReadableStream<Uint8Array>({
     async start(controller) {
@@ -133,6 +141,7 @@ function toTextStream(
             buffer = buffer.slice(idx + 1);
             const piece = parseSSEPiece(line, provider);
             if (piece.finishReason) finishReason = piece.finishReason;
+            if (piece.usage) usage = mergeUsage(usage, piece.usage);
             if (piece.text !== null) {
               full += piece.text;
               controller.enqueue(encoder.encode(piece.text));
@@ -140,7 +149,7 @@ function toTextStream(
           }
         }
 
-        const tail = await onDone(full, finishReason);
+        const tail = await onDone(full, finishReason, usage);
         if (tail) controller.enqueue(encoder.encode(tail));
         controller.close();
       } catch {
@@ -175,6 +184,10 @@ export async function POST(req: Request): Promise<Response> {
   if (!lastUser) {
     return errorResponse("Нет сообщения пользователя", 400, requestId);
   }
+
+  // Кто спрашивает: у сайта это анонимная cookie, у бота — идентификатор
+  // Telegram. Нужен для отчёта о расходе токенов.
+  const usageUser = resolveUsageUser(req);
 
   const provider = resolveProvider();
   const apiKey = getApiKey(provider);
@@ -228,6 +241,9 @@ export async function POST(req: Request): Promise<Response> {
       // кодирования в него они не помещаются.
       "X-Context-Related": encodeURIComponent(JSON.stringify(related)),
       "X-Request-Id": requestId,
+      // Анонимный идентификатор посетителя: без него в отчёте не собрать
+      // расход по людям.
+      ...(usageUser.setCookie ? { "Set-Cookie": usageUser.setCookie } : {}),
     };
 
     // Кэшируем только ответы, которые зависят от каталога, а не от человека:
@@ -246,6 +262,19 @@ export async function POST(req: Request): Promise<Response> {
       const hit = answers.get(key);
       if (hit) {
         console.info("[chat] ответ взят из кэша", { requestId });
+        // Ответ из кэша: модель не звали, токены не потрачены. Запись всё
+        // равно появляется — так видно, сколько запросов было и сколько из
+        // них обошлись без модели.
+        await queries.recordUsage(db, {
+          userKey: usageUser.userKey,
+          userLabel: usageUser.userLabel,
+          source: usageUser.source,
+          feature: "catalog",
+          mode: prep.mode,
+          model: getModel(provider),
+          cached: true,
+          conversationId: null,
+        });
         return new Response(textToStream(hit), { headers });
       }
     }
@@ -279,8 +308,26 @@ export async function POST(req: Request): Promise<Response> {
     }
 
     return new Response(
-      toTextStream(upstream.body, provider, async (full, finishReason) => {
+      toTextStream(upstream.body, provider, async (full, finishReason, usage) => {
         const truncated = looksTruncated(full, finishReason);
+
+        // Расход токенов: провайдер присылает счётчик в конце потока. Если
+        // он молчит, считаем приблизительно по длине текста и помечаем
+        // запись как оценку.
+        const counted = usage ?? estimateUsage(systemPrompt + lastUser.content, full);
+        await queries.recordUsage(db, {
+          userKey: usageUser.userKey,
+          userLabel: usageUser.userLabel,
+          source: usageUser.source,
+          feature: "catalog",
+          mode: prep.mode,
+          model: getModel(provider),
+          promptTokens: counted.promptTokens,
+          completionTokens: counted.completionTokens,
+          totalTokens: counted.totalTokens,
+          estimated: usage === null,
+          conversationId,
+        });
 
         // Оборванный ответ не сохраняем в кэш: следующий посетитель получил бы
         // обрывок вместо целого ответа.

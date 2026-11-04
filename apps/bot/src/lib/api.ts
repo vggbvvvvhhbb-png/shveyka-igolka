@@ -110,6 +110,28 @@ export interface ChatAnswer {
 }
 
 /**
+ * Кто спрашивает.
+ *
+ * Telegram знает идентификатор каждого человека: сайт записывает его в
+ * отчёт о расходе токенов, и по нему видно, кто и сколько потратил.
+ */
+export interface BotUser {
+  /** Идентификатор пользователя в Telegram. */
+  id: number;
+  /** Имя или ник: в отчёте видно, кто это. */
+  name?: string;
+}
+
+/** Заголовки, которыми бот говорит сайту, кто именно спрашивает. */
+function userHeaders(user: BotUser | null | undefined): Record<string, string> {
+  if (!user || !Number.isFinite(user.id) || user.id === 0) return {};
+  const headers: Record<string, string> = { "X-Shveyka-User": `tg:${user.id}` };
+  const name = user.name?.trim();
+  if (name) headers["X-Shveyka-User-Name"] = name;
+  return headers;
+}
+
+/**
  * Спрашивает помощника в режиме «Каталог».
  *
  * Ответ приходит потоком текста: для бота это неудобно, поэтому тело
@@ -117,7 +139,8 @@ export interface ChatAnswer {
  */
 export async function askCatalog(
   message: string,
-  conversationId: string | null
+  conversationId: string | null,
+  user?: BotUser | null
 ): Promise<ApiResult<ChatAnswer>> {
   try {
     const res = await fetch(`${config.webApiUrl}/api/chat`, {
@@ -125,6 +148,7 @@ export async function askCatalog(
       headers: {
         "Content-Type": "application/json",
         ...(conversationId ? { "X-Conversation-Id": conversationId } : {}),
+        ...userHeaders(user),
       },
       body: JSON.stringify({ messages: [{ role: "user", content: message }] }),
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
@@ -152,7 +176,8 @@ export async function askCatalog(
 export function askWeb(
   message: string,
   mode: "search" | "reason" | "research",
-  conversationId: string | null
+  conversationId: string | null,
+  user?: BotUser | null
 ): Promise<ApiResult<AssistantAnswer>> {
   return request<AssistantAnswer>(
     "/api/assistant",
@@ -161,6 +186,7 @@ export function askWeb(
       headers: {
         "Content-Type": "application/json",
         ...(conversationId ? { "X-Conversation-Id": conversationId } : {}),
+        ...userHeaders(user),
       },
       body: JSON.stringify({ message, mode }),
     },

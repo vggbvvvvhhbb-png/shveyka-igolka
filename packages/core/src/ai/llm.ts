@@ -6,6 +6,8 @@
  * бесплатного тарифа, и от неверно указанного идентификатора модели.
  */
 
+import { parseProviderUsage, type TokenUsage } from "./usage";
+
 /** Роль сообщения в диалоге с моделью. */
 export type ChatRole = "system" | "user" | "assistant";
 
@@ -162,12 +164,16 @@ export type ReasoningEffort = "low" | "medium" | "high";
 export type ChatResult = {
   text: string;
   model: string;
+  /** Расход токенов, если провайдер прислал счётчик. */
+  usage: TokenUsage | null;
 };
 
 type ApiMessage = { role: ChatRole; content: string };
 type ApiResponse = {
   choices?: { message?: { content?: string | { text?: string }[] }; finish_reason?: string }[];
   error?: { message?: string };
+  /** Счётчик токенов: у провайдеров он лежит в этом поле. */
+  usage?: unknown;
 };
 
 /**
@@ -216,13 +222,16 @@ async function fetchWithTimeout(
  * Бросает LlmError, если провайдер ответил ошибкой или пустым текстом.
  * На 429 делает паузу и повторяет запрос: бесплатный тариф отдаёт 429 при
  * частых обращениях, и это не поломка, а ограничение.
+ *
+ * Возвращает текст ответа вместе с расходом токенов, если провайдер его
+ * прислал.
  */
 async function askModel(
   model: string,
   options: ChatOptions,
   apiKey: string,
   baseUrl: string
-): Promise<string> {
+): Promise<{ text: string; usage: TokenUsage | null }> {
   const messages: ApiMessage[] = options.messages.map((m) => ({
     role: m.role,
     content: m.content,
@@ -285,7 +294,7 @@ async function askModel(
     if (!text) {
       throw new LlmError(`Модель ${model} вернула пустой ответ`, model);
     }
-    return text;
+    return { text, usage: parseProviderUsage(payload.usage) };
   }
 
   throw new LlmError(`Модель ${model} не ответила из-за лимита запросов`, model, 429);
@@ -311,8 +320,8 @@ export async function chat(options: ChatOptions): Promise<ChatResult> {
 
   for (const model of options.models) {
     try {
-      const text = await askModel(model, options, apiKey, baseUrl);
-      return { text, model };
+      const answer = await askModel(model, options, apiKey, baseUrl);
+      return { text: answer.text, model, usage: answer.usage };
     } catch (err) {
       lastError = err instanceof LlmError ? err : new LlmError("Модель не ответила", model);
       console.warn("[llm] модель не подошла, пробуем следующую", {

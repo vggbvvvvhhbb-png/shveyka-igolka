@@ -2,17 +2,19 @@
 
 Одно решение — один файл, один коммит. Порядок применения совпадает с нумерацией.
 
-| №   | Решение                                                 | Закрывает   | Ядро (`packages/core`)                                          |
-| --- | ------------------------------------------------------- | ----------- | --------------------------------------------------------------- |
-| 01  | [seed:fresh](01-seed-fresh.md)                          | D1, D8      | `catalog/syncPlan`                                              |
-| 02  | [Связи каталога](02-catalog-links.md)                   | B1, D6a     | `catalog/links`                                                 |
-| 03  | [SEO](03-seo.md)                                        | B10         | `seo/*`                                                         |
-| 04  | [AI: контекст, режимы, отказ, токены](04-ai-context.md) | B2 B3 B4 D3 | `ai/pageContext humanize modes fallback truncation prepareChat` |
-| 05  | [Кэш ответов и общий rate limit](05-cache-ratelimit.md) | B11 D4      | `ai/answerCache rateLimitStore`                                 |
-| 06  | [Схемы швов](06-seam-diagrams.md)                       | B8          | `diagrams/seamSvg`                                              |
-| 07  | [Стартовый экран](07-onboarding.md)                     | B6          | `onboarding/recommend`                                          |
-| 08  | [Замок владельца](08-owner-lock.md)                     | D2          | `auth/ownerKey`                                                 |
-| 09  | [PWA и офлайн-каталог](09-pwa-offline.md)               | B13         | —                                                               |
+| №   | Решение                                                          | Закрывает   | Ядро (`packages/core`)                                          |
+| --- | ---------------------------------------------------------------- | ----------- | --------------------------------------------------------------- |
+| 01  | [seed:fresh](01-seed-fresh.md)                                   | D1, D8      | `catalog/syncPlan`                                              |
+| 02  | [Связи каталога](02-catalog-links.md)                            | B1, D6a     | `catalog/links`                                                 |
+| 03  | [SEO](03-seo.md)                                                 | B10         | `seo/*`                                                         |
+| 04  | [AI: контекст, режимы, отказ, токены](04-ai-context.md)          | B2 B3 B4 D3 | `ai/pageContext humanize modes fallback truncation prepareChat` |
+| 05  | [Кэш ответов и общий rate limit](05-cache-ratelimit.md)          | B11 D4      | `ai/answerCache rateLimitStore`                                 |
+| 06  | [Схемы швов](06-seam-diagrams.md)                                | B8          | `diagrams/seamSvg`                                              |
+| 07  | [Стартовый экран](07-onboarding.md)                              | B6          | `onboarding/recommend`                                          |
+| 08  | [Замок владельца](08-owner-lock.md)                              | D2          | `auth/ownerKey`                                                 |
+| 09  | [PWA и офлайн-каталог](09-pwa-offline.md)                        | B13         | —                                                               |
+| 10  | [Бот, форма обращений, правила](10-bot-parity-contacts-rules.md) | —           | `ai/limits`                                                     |
+| 11  | [Учёт токенов и админ-бот](11-token-usage-admin-bot.md)          | —           | `ai/usage`                                                      |
 
 ## Состояние
 
