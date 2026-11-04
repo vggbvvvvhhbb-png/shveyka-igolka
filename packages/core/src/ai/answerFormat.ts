@@ -253,13 +253,92 @@ function stripInventedMarkers(text: string): string {
 }
 
 /**
+ * Служебная разметка ссылок, которую модель вставляет вместо обычной.
+ *
+ * Некоторые модели переносят в ответ теги вида `<Link url="…" title="…"/>`.
+ * В интерфейсе это выглядит как мусор: человек видит XML прямо в тексте.
+ * Переводим такой тег в обычную ссылку Markdown — интерфейс её разбирает.
+ */
+const LINK_TAG =
+  /<\s*Link\s+url\s*=\s*["']([^"']+)["'](?:\s+title\s*=\s*["']([^"']*)["'])?\s*\/?>/gi;
+
+/** Приводит служебные теги ссылок к обычной разметке. */
+export function stripLinkTags(text: string): string {
+  return text.replace(LINK_TAG, (_whole, url: string, title?: string) => {
+    const label = (title ?? "").trim();
+    if (label) return `[${label}](${url})`;
+    return url;
+  });
+}
+
+/**
+ * Заголовок раздела ответа: одна или две решётки.
+ *
+ * Три и больше решёток — это подзаголовок внутри раздела, повторением
+ * раздела он не считается.
+ */
+const SECTION_HEADING = /^(#{1,2})\s+(.*)$/;
+
+/** Ключ раздела: заголовок и содержимое без учёта пробелов и регистра. */
+function sectionKey(heading: string, body: string): string {
+  const normalized = body.toLowerCase().replace(/\s+/g, " ").trim();
+  return `${heading.toLowerCase().replace(/\s+/g, " ").trim()}::${normalized}`;
+}
+
+/**
+ * Убирает повторяющиеся разделы ответа.
+ *
+ * Модели иногда пишут один и тот же раздел несколько раз подряд: сначала
+ * «Короткий вывод», потом снова «Короткий вывод» с тем же текстом. Читать
+ * это невозможно, а смысл не меняется — остаётся первая копия.
+ */
+export function removeRepeatedSections(text: string): string {
+  const lines = text.split("\n");
+  const seen = new Set<string>();
+  const kept: string[] = [];
+
+  let heading = "";
+  let body: string[] = [];
+  let inSection = false;
+
+  const flush = (): void => {
+    if (!inSection) {
+      kept.push(...body);
+      body = [];
+      return;
+    }
+    const key = sectionKey(heading, body.join("\n"));
+    if (!seen.has(key)) {
+      seen.add(key);
+      kept.push(heading, ...body);
+    }
+    body = [];
+  };
+
+  for (const line of lines) {
+    const match = SECTION_HEADING.exec(line.trim());
+    if (match) {
+      flush();
+      inSection = true;
+      heading = line;
+      continue;
+    }
+    body.push(line);
+  }
+  flush();
+
+  return kept.join("\n");
+}
+
+/**
  * Разбирает ответ на текст и вопросы для кнопок.
  *
  * Это то, что делается с ответом перед показом: огрехи форматирования
  * убираются, а блок вопросов выносится из текста отдельным списком.
  */
 export function parseAnswer(text: string): AnswerWithFollowUps {
-  return extractFollowUps(normalizeAnswer(stripInventedMarkers(text)));
+  const cleaned = normalizeAnswer(stripLinkTags(stripInventedMarkers(text)));
+  return extractFollowUps(removeRepeatedSections(cleaned));
 }
 
 /**
