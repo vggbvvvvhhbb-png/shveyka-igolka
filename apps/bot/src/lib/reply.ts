@@ -47,11 +47,18 @@ export function mainMenu(): InlineKeyboard {
     .text("🧷 Фурнитура", "menu:hardware")
     .row()
     .text("🧼 Уход за тканью", "menu:care")
-    .text("📊 Итоги месяца", "menu:stats")
+    .text("📏 Мои мерки", "menu:measure")
     .row()
+    .text("📊 Итоги месяца", "menu:stats")
     .text("🔎 Поиск по справочнику", "menu:find")
+    .row()
     .text("🤖 Спросить помощника", "menu:ask");
-  if (config.siteUrl) kb.row().url("🌐 Открыть сайт", config.siteUrl);
+  if (config.siteUrl) {
+    kb.row()
+      .url("📖 Правила сайта", `${config.siteUrl}/rules`)
+      .url("✉️ Обращения", `${config.siteUrl}/contacts`);
+    kb.row().url("🌐 Открыть сайт", config.siteUrl);
+  }
   return kb;
 }
 

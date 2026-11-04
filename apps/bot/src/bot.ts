@@ -14,6 +14,7 @@ import { assistantWizard, handleAssistantCallback } from "./flows/assistant";
 import { careWizard, sendCareQr } from "./flows/care";
 import { cutWizard } from "./flows/cut";
 import { handleHardwareCallback, hardwareWizard } from "./flows/hardware";
+import { startMeasure, measureWizard } from "./flows/measure";
 import { profitWizard, showStats } from "./flows/profit";
 import { searchWizard } from "./flows/search";
 import { registerJournal } from "./journal";
@@ -40,6 +41,9 @@ const FLOWS: Record<string, Wizard> = {
   ask: assistantWizard,
 };
 Object.values(FLOWS).forEach(registerWizard);
+// Мерки запускаются отдельной командой: перед вопросами бот подставляет
+// то, что уже записано.
+registerWizard(measureWizard);
 
 /** Команды, которые бот показывает в меню Telegram. */
 export const BOT_COMMANDS = [
@@ -49,6 +53,7 @@ export const BOT_COMMANDS = [
   { command: "analog", description: "Подбор аналога ткани" },
   { command: "hardware", description: "Сколько фурнитуры" },
   { command: "care", description: "Уход за тканью" },
+  { command: "measure", description: "Мои мерки" },
   { command: "find", description: "Поиск по справочнику" },
   { command: "ask", description: "Спросить помощника" },
   { command: "stats", description: "Итоги месяца" },
@@ -65,6 +70,7 @@ const HELP_TEXT = [
   "/analog — подбор аналога ткани",
   "/hardware — сколько фурнитуры",
   "/care — уход за тканью",
+  "/measure — мои мерки: обхват груди, талии, бёдер и рост",
   "/find — поиск по справочнику: ткани, швы, проекты",
   "/ask — спросить помощника: каталог, поиск, рассуждение, ресёрч",
   "/stats — итоги месяца",
@@ -144,6 +150,12 @@ export function createBot(
       await showStats(ctx);
       return;
     }
+    // Мерки: перед вопросами нужно подставить уже записанные значения.
+    if (key === "measure") {
+      await cancelWizard(ctx);
+      await startMeasure(ctx);
+      return;
+    }
     const wizard = FLOWS[key];
     if (wizard) await startWizard(ctx, wizard);
   };
@@ -163,6 +175,8 @@ export function createBot(
   }
   // /calc — понятное имя для раскроя
   bot.command("calc", (ctx) => startFlow(ctx, "cut"));
+  // /measure — мерки: сценарий подставляет прежние значения
+  bot.command("measure", (ctx) => startFlow(ctx, "measure"));
 
   // ---------- Журнал шитья: те же записи, что и на странице ----------
   // Команды регистрируем до общего обработчика текста: иначе сообщение
