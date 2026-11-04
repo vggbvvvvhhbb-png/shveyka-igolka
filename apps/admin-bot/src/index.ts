@@ -41,7 +41,9 @@ async function main(): Promise<void> {
       .catch(() => undefined);
   }
 
-  await bot.start();
+  // start() не заканчивается, пока бот работает: ждать его — значит
+  // не дойти до планировщика отчётов. Запускаем и идём дальше.
+  void bot.start();
 
   console.info("[admin] бот запущен");
 
