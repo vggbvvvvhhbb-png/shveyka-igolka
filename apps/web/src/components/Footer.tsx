@@ -3,6 +3,7 @@ import { TelegramBotButton } from "@/components/TelegramBotButton";
 import { TelegramMark } from "@/components/TelegramMark";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { btnGhostCls } from "@/components/ui";
+import { OWNER_TELEGRAM_URL } from "@/lib/site";
 
 /**
  * Подвал «Выходные данные».
@@ -107,14 +108,23 @@ export function Footer() {
           <div>
             <p className="text-sm font-medium text-ink">Написать владельцу или прочитать правила</p>
             <p className="text-xs text-ink-3">
-              Обращения приходят письмом на почту сайта. В правилах — лимиты помощника и то, что он
-              умеет.
+              Обращения приходят письмом на почту сайта, а в Telegram можно написать напрямую. В
+              правилах — лимиты помощника и то, что он умеет.
             </p>
           </div>
           <div className="flex flex-wrap gap-3">
             <Link href="/contacts" className={btnGhostCls}>
               Контакты для обращения
             </Link>
+            <a
+              href={OWNER_TELEGRAM_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={btnGhostCls}
+            >
+              <TelegramMark className="h-5 w-5" />
+              Написать в Telegram
+            </a>
             <Link href="/rules" className={btnGhostCls}>
               Правила сайта и помощника
             </Link>

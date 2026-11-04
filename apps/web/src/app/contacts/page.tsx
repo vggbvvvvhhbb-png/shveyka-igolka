@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ContactForm } from "@/components/ContactForm";
-import { Card, PageShell, SectionLabel } from "@/components/ui";
+import { TelegramMark } from "@/components/TelegramMark";
+import { Card, PageShell, SectionLabel, btnGhostCls } from "@/components/ui";
 import { contactEmail, mailConfigured } from "@/lib/mail";
+import { OWNER_TELEGRAM, OWNER_TELEGRAM_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "Контакты для обращения — Швейка",
@@ -85,6 +87,22 @@ export default function ContactsPage() {
             >
               Правила сайта и помощника
             </Link>
+          </Card>
+
+          <Card>
+            <SectionLabel>Написать в Telegram</SectionLabel>
+            <p className="text-sm text-ink-2">
+              Если письмо идёт долго или ответ не пришёл — напишите владельцу напрямую в Telegram.
+            </p>
+            <a
+              href={OWNER_TELEGRAM_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={btnGhostCls}
+            >
+              <TelegramMark className="h-5 w-5" />
+              Написать @{OWNER_TELEGRAM}
+            </a>
           </Card>
         </div>
       </div>
