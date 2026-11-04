@@ -200,4 +200,40 @@ describe("chat", () => {
     // Первый запрос и два повтора. Вторая модель не пробуется: лимит общий.
     expect(fetch).toHaveBeenCalledTimes(3);
   });
+
+  it("502 шлюза повторяется, а не роняет режим", async () => {
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(new Response("шлюз недоступен", { status: 502 }))
+      .mockResolvedValueOnce(jsonResponse(OK_BODY));
+
+    const result = await chat({ models: ["m1"], messages: MESSAGES });
+
+    expect(result.text).toBe("Готово.");
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it("после исчерпания повторов 502 уходит к следующей модели", async () => {
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(new Response("шлюз недоступен", { status: 502 }))
+      .mockResolvedValueOnce(new Response("шлюз недоступен", { status: 502 }))
+      .mockResolvedValueOnce(new Response("шлюз недоступен", { status: 502 }))
+      .mockResolvedValueOnce(jsonResponse(OK_BODY));
+
+    const result = await chat({ models: ["m1", "m2"], messages: MESSAGES });
+
+    expect(result.model).toBe("m2");
+    expect(result.text).toBe("Готово.");
+  });
+
+  it("402 без денег повтором не лечится: идём к следующей модели", async () => {
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(new Response("нужен check-in", { status: 402 }))
+      .mockResolvedValueOnce(jsonResponse(OK_BODY));
+
+    const result = await chat({ models: ["m1", "m2"], messages: MESSAGES });
+
+    expect(result.model).toBe("m2");
+    // Повтор делаем только для временных сбоев: 402 — это аккаунт.
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
 });

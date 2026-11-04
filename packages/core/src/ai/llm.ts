@@ -47,6 +47,16 @@ const DEFAULT_TIMEOUT_MS = 45_000;
 const RATE_LIMIT_RETRIES = 2;
 const DEFAULT_RATE_LIMIT_BACKOFF_MS = 4000;
 
+/**
+ * Ошибки, при которых запрос повторяют.
+ *
+ * 429 — упёрлись в лимит запросов. 502–524 — шлюз или его вышестоящий
+ * провайдер временно не отвечают: такие сбои длятся секунды, и повтор
+ * почти всегда проходит. Без повтора режим помощника падал целиком, хотя
+ * через минуту тот же вопрос обрабатывался нормально.
+ */
+const RETRYABLE_STATUS = new Set([429, 502, 503, 504, 520, 521, 522, 523, 524]);
+
 /** Пауза перед повтором: первая — базовая, вторая — вдвое длиннее. */
 function rateLimitDelayMs(attempt: number): number {
   const raw = Number(process.env.LLM_RATE_LIMIT_BACKOFF_MS);
@@ -262,10 +272,11 @@ async function askModel(
       options.timeoutMs ?? DEFAULT_TIMEOUT_MS
     );
 
-    if (response.status === 429 && attempt < RATE_LIMIT_RETRIES) {
+    if (RETRYABLE_STATUS.has(response.status) && attempt < RATE_LIMIT_RETRIES) {
       const delay = rateLimitDelayMs(attempt);
-      console.warn("[llm] провайдер ограничил частоту запросов, ждём и повторяем", {
+      console.warn("[llm] провайдер временно не ответил, ждём и повторяем", {
         model,
+        status: response.status,
         attempt: attempt + 1,
         delay,
       });
