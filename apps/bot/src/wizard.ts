@@ -166,9 +166,18 @@ async function advance(ctx: MyContext, w: Wizard): Promise<void> {
   await ask(ctx, step);
 }
 
-/** Запускает сценарий с первого вопроса. */
-export async function startWizard(ctx: MyContext, w: Wizard): Promise<void> {
-  ctx.session.wiz = { id: w.id, step: -1, data: {}, multi: [] };
+/**
+ * Запускает сценарий с первого вопроса.
+ *
+ * initialData — ответы, которые уже есть. Нужны, чтобы продолжить диалог с
+ * середины: шаг с условием `when` пропускается, если ответ уже собран.
+ */
+export async function startWizard(
+  ctx: MyContext,
+  w: Wizard,
+  initialData: Data = {}
+): Promise<void> {
+  ctx.session.wiz = { id: w.id, step: -1, data: { ...initialData }, multi: [] };
   await advance(ctx, w);
 }
 

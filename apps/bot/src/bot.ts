@@ -10,10 +10,12 @@ import { FileAdapter } from "@grammyjs/storage-file";
 import { Bot, GrammyError, HttpError, session } from "grammy";
 import { config } from "./config";
 import { analogWizard } from "./flows/analog";
+import { assistantWizard, handleAssistantCallback } from "./flows/assistant";
 import { careWizard, sendCareQr } from "./flows/care";
 import { cutWizard } from "./flows/cut";
 import { handleHardwareCallback, hardwareWizard } from "./flows/hardware";
 import { profitWizard, showStats } from "./flows/profit";
+import { searchWizard } from "./flows/search";
 import { registerJournal } from "./journal";
 import { logger } from "./lib/logger";
 import { mainMenu } from "./lib/reply";
@@ -34,6 +36,8 @@ const FLOWS: Record<string, Wizard> = {
   analog: analogWizard,
   hardware: hardwareWizard,
   care: careWizard,
+  find: searchWizard,
+  ask: assistantWizard,
 };
 Object.values(FLOWS).forEach(registerWizard);
 
@@ -45,6 +49,8 @@ export const BOT_COMMANDS = [
   { command: "analog", description: "Подбор аналога ткани" },
   { command: "hardware", description: "Сколько фурнитуры" },
   { command: "care", description: "Уход за тканью" },
+  { command: "find", description: "Поиск по справочнику" },
+  { command: "ask", description: "Спросить помощника" },
   { command: "stats", description: "Итоги месяца" },
   { command: "sewn", description: "Записать сшитую вещь" },
   { command: "year", description: "Итоги года" },
@@ -59,6 +65,8 @@ const HELP_TEXT = [
   "/analog — подбор аналога ткани",
   "/hardware — сколько фурнитуры",
   "/care — уход за тканью",
+  "/find — поиск по справочнику: ткани, швы, проекты",
+  "/ask — спросить помощника: каталог, поиск, рассуждение, ресёрч",
   "/stats — итоги месяца",
   "/sewn название; затраты; цена в магазине; ткань — записать сшитую вещь",
   "/year — итоги года",
@@ -113,8 +121,15 @@ export function createBot(
   const showMenu = async (ctx: MyContext, greeting = false): Promise<void> => {
     await cancelWizard(ctx);
     const text = greeting
-      ? "Привет! 👋 Я помощник Швейки. Помогу посчитать ткань, прикинуть выгоду, подобрать аналог, посчитать фурнитуру и рассказать про уход.\n\nЧто посчитаем?"
-      : "Что посчитаем?";
+      ? [
+          "Привет! 👋 Я помощник Швейки.",
+          "",
+          "Посчитаю ткань, прикину выгоду, подберу аналог, посчитаю фурнитуру и расскажу про уход.",
+          "Ещё найду нужную ткань, шов или проект в справочнике и отвечу на вопрос — так же, как на сайте.",
+          "",
+          "Что сделаем?",
+        ].join("\n")
+      : "Что сделаем?";
     await ctx.reply(text, { reply_markup: mainMenu() });
   };
 
@@ -161,6 +176,7 @@ export function createBot(
   });
   bot.callbackQuery(/^hw:/, handleHardwareCallback);
   bot.callbackQuery("care:qr", sendCareQr);
+  bot.callbackQuery("ask:more", handleAssistantCallback);
   bot.on("callback_query:data", async (ctx, next) => {
     if (await handleWizardCallback(ctx)) return;
     await next();

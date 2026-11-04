@@ -47,7 +47,10 @@ export function mainMenu(): InlineKeyboard {
     .text("🧷 Фурнитура", "menu:hardware")
     .row()
     .text("🧼 Уход за тканью", "menu:care")
-    .text("📊 Итоги месяца", "menu:stats");
+    .text("📊 Итоги месяца", "menu:stats")
+    .row()
+    .text("🔎 Поиск по справочнику", "menu:find")
+    .text("🤖 Спросить помощника", "menu:ask");
   if (config.siteUrl) kb.row().url("🌐 Открыть сайт", config.siteUrl);
   return kb;
 }

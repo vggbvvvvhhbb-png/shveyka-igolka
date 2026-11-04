@@ -27,6 +27,15 @@ export interface SessionData {
   hw?: { input: HardwareInput; have: string[] };
   /** Текст для QR-кода последней инструкции по уходу. */
   careQr?: string;
+  /**
+   * id диалога с помощником на сайте.
+   *
+   * По нему ответ продолжает тот же разговор: модель видит предыдущие
+   * реплики, а человек — свою переписку.
+   */
+  conversationId?: string;
+  /** Режим работы помощника, выбранный в последний раз. */
+  assistantMode?: string;
 }
 
 export type MyContext = Context & SessionFlavor<SessionData>;
