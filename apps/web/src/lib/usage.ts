@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { UsageSource } from "@shveyka/core";
+import { queries, type DatabaseClient } from "@shveyka/db";
 
 /**
  * Кто спрашивает помощника.
@@ -77,4 +78,24 @@ export function resolveUsageUser(req: Request): UsageUser {
     source: "web",
     setCookie: `${USER_COOKIE}=${id}; Path=/; Max-Age=31536000; SameSite=Lax`,
   };
+}
+
+/**
+ * Записывает расход токенов.
+ *
+ * Ошибка записи не должна ломать ответ: человек уже получил его, а отчёт
+ * можно попросить позже. Поэтому здесь ошибка гасится, а в лог уходит
+ * только её имя — без внутренних деталей.
+ */
+export async function recordUsageSafe(
+  db: DatabaseClient,
+  input: queries.UsageInput
+): Promise<void> {
+  try {
+    await queries.recordUsage(db, input);
+  } catch (err) {
+    console.error("[usage] расход не записан", {
+      name: err instanceof Error ? err.name : "unknown",
+    });
+  }
 }

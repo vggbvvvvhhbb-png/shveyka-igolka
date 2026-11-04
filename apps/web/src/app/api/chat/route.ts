@@ -33,7 +33,7 @@ import { clientIp, limitRequest } from "@/lib/guard";
 import { requestIsOwner } from "@/lib/owner";
 import { loadCatalog, poolOf } from "@/lib/catalog";
 import { saveAssistantTurn, saveUserTurn } from "@/lib/chatHistory";
-import { resolveUsageUser } from "@/lib/usage";
+import { resolveUsageUser, recordUsageSafe } from "@/lib/usage";
 
 export const dynamic = "force-dynamic";
 
@@ -265,13 +265,16 @@ export async function POST(req: Request): Promise<Response> {
         // Ответ из кэша: модель не звали, токены не потрачены. Запись всё
         // равно появляется — так видно, сколько запросов было и сколько из
         // них обошлись без модели.
-        await queries.recordUsage(db, {
+        await recordUsageSafe(db, {
           userKey: usageUser.userKey,
           userLabel: usageUser.userLabel,
           source: usageUser.source,
           feature: "catalog",
           mode: prep.mode,
           model: getModel(provider),
+          promptTokens: 0,
+          completionTokens: 0,
+          totalTokens: 0,
           cached: true,
           conversationId: null,
         });
@@ -315,7 +318,7 @@ export async function POST(req: Request): Promise<Response> {
         // он молчит, считаем приблизительно по длине текста и помечаем
         // запись как оценку.
         const counted = usage ?? estimateUsage(systemPrompt + lastUser.content, full);
-        await queries.recordUsage(db, {
+        await recordUsageSafe(db, {
           userKey: usageUser.userKey,
           userLabel: usageUser.userLabel,
           source: usageUser.source,
