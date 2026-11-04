@@ -109,8 +109,11 @@ jobs:
           docker compose ps
 
           # Ждём, пока контейнер пройдёт healthcheck.
+          # Три минуты, а не минута: после пересборки образ запускается
+          # с холодным кэшем Next.js, и первый старт занимает дольше.
+          # Раньше деплой объявлялся неудачным, хотя сайт поднимался.
           cid=$(docker compose ps -q web)
-          for _ in $(seq 1 30); do
+          for _ in $(seq 1 90); do
             status=$(docker inspect --format '{{.State.Health.Status}}' "$cid" 2>/dev/null || echo starting)
             if [ "$status" = "healthy" ]; then
               echo "Сайт поднялся и отвечает."
@@ -125,7 +128,7 @@ jobs:
           done
 
           if [ "${status:-}" != "healthy" ]; then
-            echo "Сайт не поднялся за минуту."
+            echo "Сайт не поднялся за три минуты."
             docker compose logs --tail 50 web
             exit 1
           fi
