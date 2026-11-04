@@ -34,4 +34,6 @@ export const STATIC_PAGES = [
   "/analog",
   "/hardware",
   "/care",
+  "/rules",
+  "/contacts",
 ] as const;

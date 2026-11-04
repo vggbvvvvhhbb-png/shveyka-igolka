@@ -14,6 +14,7 @@
     "@shveyka/core": "workspace:*",
     "@shveyka/db": "workspace:*",
     "next": "^15.0.0",
+    "nodemailer": "^10.3.1",
     "qrcode.react": "catalog:",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
@@ -23,6 +24,7 @@
     "@testing-library/jest-dom": "catalog:",
     "@testing-library/react": "catalog:",
     "@types/node": "^20.0.0",
+    "@types/nodemailer": "^8.0.2",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "jsdom": "catalog:",

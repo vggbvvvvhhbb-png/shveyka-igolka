@@ -73,6 +73,9 @@ export default async function AssistantPage({
           <Link href="/assistant/history" className="underline underline-offset-2 hover:text-ink">
             История диалогов
           </Link>
+          <Link href="/rules" className="underline underline-offset-2 hover:text-ink">
+            Правила и лимиты
+          </Link>
         </div>
       </div>
 

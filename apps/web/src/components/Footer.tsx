@@ -2,6 +2,7 @@ import Link from "next/link";
 import { TelegramBotButton } from "@/components/TelegramBotButton";
 import { TelegramMark } from "@/components/TelegramMark";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { btnGhostCls } from "@/components/ui";
 
 /**
  * Подвал «Выходные данные».
@@ -99,6 +100,25 @@ export function Footer() {
             </div>
           </div>
           <TelegramBotButton label="Открыть бота" />
+        </div>
+
+        {/* Обращения и правила: то, что человек ищет в подвале в последнюю очередь. */}
+        <div className="mt-6 flex flex-col gap-3 border-t border-hair pt-6 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm font-medium text-ink">Написать владельцу или прочитать правила</p>
+            <p className="text-xs text-ink-3">
+              Обращения приходят письмом на почту сайта. В правилах — лимиты помощника и то, что он
+              умеет.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <Link href="/contacts" className={btnGhostCls}>
+              Контакты для обращения
+            </Link>
+            <Link href="/rules" className={btnGhostCls}>
+              Правила сайта и помощника
+            </Link>
+          </div>
         </div>
 
         <div className="mt-10 flex flex-col gap-4 border-t border-hair pt-4 sm:flex-row sm:items-center sm:justify-between">
