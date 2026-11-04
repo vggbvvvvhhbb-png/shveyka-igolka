@@ -11,12 +11,20 @@
 import { BOT_COMMANDS, createBot } from "./bot";
 import { config } from "./config";
 import { logger } from "./lib/logger";
+import { isLocalAddress } from "./lib/settings";
 
 const token = config.token;
 if (!token) {
   logger.error("Не задан BOT_TOKEN. Скопируй .env.example в .env и впиши токен от @BotFather.");
   process.exit(1);
 }
+
+// Если в SITE_URL остался localhost, ссылки ушли бы в никуда: посты в канале
+// читают со стороны. Бот молча берёт боевой домен — говорим об этом.
+if (isLocalAddress(process.env.SITE_URL ?? "")) {
+  logger.info(`SITE_URL смотрит на localhost — ссылки бота ведут на ${config.siteUrl}`);
+}
+logger.info(`Посты в канал: ${config.channelId || "выключены"}`);
 
 const bot = createBot(token);
 

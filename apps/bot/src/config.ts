@@ -9,6 +9,7 @@
 import { config as loadEnv } from "dotenv";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { resolveChannelId, resolveOwnerIds, resolveSiteUrl } from "./lib/settings";
 
 /** Корень пакета apps/bot. */
 export const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -34,19 +35,22 @@ const allowedIds = idList(process.env.ALLOWED_USER_IDS ?? "");
 /**
  * Кто может публиковать посты в канал.
  *
- * Отдельный список OWNER_USER_IDS не обязателен: если он пуст, права
- * владельца берём у ALLOWED_USER_IDS — у приватного бота это он и есть.
+ * Свой список OWNER_USER_IDS не обязателен: если он пуст, права владельца
+ * берём у ALLOWED_USER_IDS — у приватного бота это он и есть. Если и его
+ * нет, остаётся владелец мастерской.
  */
-const ownerIds = (() => {
-  const own = idList(process.env.OWNER_USER_IDS ?? "");
-  return own.length > 0 ? own : allowedIds;
-})();
+const ownerIds = resolveOwnerIds(idList(process.env.OWNER_USER_IDS ?? ""), allowedIds);
 
 export const config = {
   /** Токен бота от @BotFather. Пустой только в тестах — проверяется при старте. */
   token: process.env.BOT_TOKEN ?? process.env.TELEGRAM_BOT_TOKEN ?? "",
-  /** Адрес сайта без слеша в конце: нужен для ссылок на помощника и каталог. */
-  siteUrl: (process.env.SITE_URL ?? "").replace(/\/+$/, ""),
+  /**
+   * Адрес сайта без слеша в конце: нужен для ссылок на помощника и каталог.
+   *
+   * Если SITE_URL не задан или смотрит на localhost, берётся боевой домен:
+   * ссылки из постов читают со стороны, у них localhost не открывается.
+   */
+  siteUrl: resolveSiteUrl(process.env.SITE_URL),
   /** Папка, где бот хранит состояние диалогов и историю проектов. */
   dataDir: path.resolve(packageRoot, process.env.DATA_DIR ?? "./data"),
   /** Адрес сайта изнутри сети: бот пишет в тот же журнал, что и страница. */
@@ -58,13 +62,13 @@ export const config = {
   ownerKey: process.env.OWNER_KEY ?? "",
   /** Telegram ID пользователей с доступом. Пусто — доступ у всех. */
   allowedIds,
-  /** Кто может публиковать посты в канал. Пусто — не может никто. */
+  /** Кто может публиковать посты в канал. Пусто — владелец мастерской. */
   ownerIds,
   /**
    * Чат канала, куда бот пишет посты: @username или -100… .
-   * Пусто — публикация выключена, бот скажет об этом владельцу.
+   * Если переменной нет или она пустая — канал мастерской.
    */
-  channelId: (process.env.CHANNEL_ID ?? "").trim(),
+  channelId: resolveChannelId(process.env.CHANNEL_ID),
   /** Публичная ссылка на канал: нужна кнопке «Открыть канал» в постах. */
   channelUrl: (process.env.CHANNEL_URL ?? "https://t.me/shveyka_igolka").trim(),
 };
