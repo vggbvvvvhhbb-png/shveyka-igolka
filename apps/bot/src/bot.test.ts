@@ -125,4 +125,49 @@ describe("бот целиком", () => {
     const sent = calls.filter((c) => c.method === "sendMessage");
     expect(sent[0].payload.text).toContain("Выбери вариант кнопкой");
   });
+
+  it("по ссылке с полезной нагрузкой открывает нужный сценарий", async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), "shveyka-bot-"));
+    const bot = createBot("123:fake", dir, botInfo);
+    const calls = capture(bot);
+
+    // Так приходит ссылка t.me/бот?start=cut
+    await bot.handleUpdate({
+      update_id: 4,
+      message: {
+        message_id: 12,
+        date: Math.floor(Date.now() / 1000),
+        chat,
+        from,
+        text: "/start cut",
+        entities: [{ type: "bot_command", offset: 0, length: 6 }],
+      },
+    });
+
+    const sent = calls.filter((c) => c.method === "sendMessage");
+    expect(sent).toHaveLength(1);
+    expect(sent[0].payload.text).toContain("Раскрой ткани");
+  });
+
+  it("пост в канал публикует только владелец", async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), "shveyka-bot-"));
+    const bot = createBot("123:fake", dir, botInfo);
+    const calls = capture(bot);
+
+    await bot.handleUpdate({
+      update_id: 5,
+      message: {
+        message_id: 13,
+        date: Math.floor(Date.now() / 1000),
+        chat,
+        from,
+        text: "/post",
+        entities: [{ type: "bot_command", offset: 0, length: 5 }],
+      },
+    });
+
+    const sent = calls.filter((c) => c.method === "sendMessage");
+    expect(sent).toHaveLength(1);
+    expect(sent[0].payload.text).toContain("только владелец");
+  });
 });

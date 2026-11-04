@@ -3,6 +3,7 @@ import { isUuid, isWorkMode, type Source } from "@shveyka/core";
 import { getDbSingleton, queries } from "@shveyka/db";
 import { ChatWidget, type Message } from "@/components/ChatWidget";
 import { TelegramBotButton } from "@/components/TelegramBotButton";
+import { TelegramChannelButton } from "@/components/TelegramChannelButton";
 
 export const dynamic = "force-dynamic";
 
@@ -92,7 +93,10 @@ export default async function AssistantPage({
           Удобнее в мессенджере? Там тот же помощник и пять калькуляторов — считает на ходу, пока
           ткань ещё в руках.
         </p>
-        <TelegramBotButton label="Спросить в Telegram" variant="quiet" />
+        <div className="flex flex-wrap gap-3">
+          <TelegramBotButton label="Спросить в Telegram" variant="quiet" />
+          <TelegramChannelButton label="Открыть канал" variant="quiet" />
+        </div>
       </div>
     </div>
   );

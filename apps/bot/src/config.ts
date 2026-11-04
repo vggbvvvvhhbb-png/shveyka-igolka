@@ -19,6 +19,29 @@ export const repoRoot = path.resolve(packageRoot, "..", "..");
 loadEnv({ path: path.join(packageRoot, ".env") });
 loadEnv({ path: path.join(repoRoot, ".env") });
 
+/** Список чисел из переменной окружения: пустые и нечисловые значения убираем. */
+const idList = (raw: string): number[] =>
+  raw
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .map(Number)
+    .filter((n) => Number.isFinite(n));
+
+/** Кому открыт бот. */
+const allowedIds = idList(process.env.ALLOWED_USER_IDS ?? "");
+
+/**
+ * Кто может публиковать посты в канал.
+ *
+ * Отдельный список OWNER_USER_IDS не обязателен: если он пуст, права
+ * владельца берём у ALLOWED_USER_IDS — у приватного бота это он и есть.
+ */
+const ownerIds = (() => {
+  const own = idList(process.env.OWNER_USER_IDS ?? "");
+  return own.length > 0 ? own : allowedIds;
+})();
+
 export const config = {
   /** Токен бота от @BotFather. Пустой только в тестах — проверяется при старте. */
   token: process.env.BOT_TOKEN ?? process.env.TELEGRAM_BOT_TOKEN ?? "",
@@ -34,10 +57,14 @@ export const config = {
    */
   ownerKey: process.env.OWNER_KEY ?? "",
   /** Telegram ID пользователей с доступом. Пусто — доступ у всех. */
-  allowedIds: (process.env.ALLOWED_USER_IDS ?? "")
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean)
-    .map(Number)
-    .filter((n) => Number.isFinite(n)),
+  allowedIds,
+  /** Кто может публиковать посты в канал. Пусто — не может никто. */
+  ownerIds,
+  /**
+   * Чат канала, куда бот пишет посты: @username или -100… .
+   * Пусто — публикация выключена, бот скажет об этом владельцу.
+   */
+  channelId: (process.env.CHANNEL_ID ?? "").trim(),
+  /** Публичная ссылка на канал: нужна кнопке «Открыть канал» в постах. */
+  channelUrl: (process.env.CHANNEL_URL ?? "https://t.me/shveyka_igolka").trim(),
 };

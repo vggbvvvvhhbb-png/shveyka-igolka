@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { TelegramBotButton } from "@/components/TelegramBotButton";
+import { TelegramChannelButton } from "@/components/TelegramChannelButton";
 import { TelegramMark } from "@/components/TelegramMark";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { btnGhostCls } from "@/components/ui";
@@ -96,11 +97,15 @@ export function Footer() {
             <div>
               <p className="font-title text-lg font-bold text-ink">Швейка в Telegram</p>
               <p className="text-sm text-ink-2">
-                Тот же помощник и пять калькуляторов — прямо в чате.
+                Помощник и пять калькуляторов — в боте. А в канале мастерской — заметки: что шили,
+                какие ткани и швы пригодились и что из этого вышло.
               </p>
             </div>
           </div>
-          <TelegramBotButton label="Открыть бота" />
+          <div className="flex flex-wrap gap-3">
+            <TelegramBotButton label="Открыть бота" />
+            <TelegramChannelButton label="Открыть канал" variant="quiet" />
+          </div>
         </div>
 
         {/* Обращения и правила: то, что человек ищет в подвале в последнюю очередь. */}

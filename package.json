@@ -7,6 +7,7 @@
     "dev": "turbo run dev --filter=@shveyka/web",
     "bot:dev": "pnpm --filter @shveyka/bot dev",
     "bot:start": "pnpm --filter @shveyka/bot start",
+    "bot:post": "pnpm --filter @shveyka/bot post",
     "build": "turbo run build",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",

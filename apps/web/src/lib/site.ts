@@ -19,6 +19,24 @@ export const TELEGRAM_BOT_URL =
   process.env.NEXT_PUBLIC_TELEGRAM_BOT_URL ?? "https://t.me/shveyka_igolka_bot";
 
 /**
+ * Адрес канала мастерской в Telegram.
+ *
+ * Задаётся `NEXT_PUBLIC_TELEGRAM_CHANNEL_URL`; по умолчанию — канал
+ * @shveyka_igolka. Канал ведёт мастерскую: заметки о шитье, анонсы и разборы.
+ * Адрес нужен кнопке «Открыть канал» в подвале и на главной.
+ */
+export const TELEGRAM_CHANNEL_URL =
+  process.env.NEXT_PUBLIC_TELEGRAM_CHANNEL_URL ?? "https://t.me/shveyka_igolka";
+
+/**
+ * Название канала — подпись кнопки и заголовка блока на сайте.
+ *
+ * Задаётся `NEXT_PUBLIC_TELEGRAM_CHANNEL_TITLE`.
+ */
+export const TELEGRAM_CHANNEL_TITLE =
+  process.env.NEXT_PUBLIC_TELEGRAM_CHANNEL_TITLE ?? "Швейка · мастерская";
+
+/**
  * Телеграм владельца сайта — для прямой связи.
  *
  * Задаётся `NEXT_PUBLIC_OWNER_TELEGRAM` (логин без @); по умолчанию —

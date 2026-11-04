@@ -2,6 +2,8 @@ import Link from "next/link";
 import { AnatomyStory } from "@/components/AnatomyStory";
 import { AtlasPlate } from "@/components/AtlasPlate";
 import { IntroFilm } from "@/components/IntroFilm";
+import { TelegramChannelButton } from "@/components/TelegramChannelButton";
+import { TELEGRAM_CHANNEL_TITLE } from "@/lib/site";
 
 /**
  * Главная — «Табл. I. Швейка».
@@ -224,6 +226,18 @@ export default function HomePage() {
               decoding="async"
             />
           </figure>
+        </section>
+
+        {/* Канал мастерской: заметки о шитье и анонсы. */}
+        <section className="flex flex-col items-start justify-between gap-4 rounded-plate border border-hair bg-paper-hi px-6 py-5 sm:flex-row sm:items-center">
+          <div>
+            <h2 className="font-title text-xl font-bold text-green">{TELEGRAM_CHANNEL_TITLE}</h2>
+            <p className="mt-1 max-w-xl leading-relaxed text-ink-2">
+              Канал мастерской: что шили, какие ткани и швы пригодились, что из этого вышло. Там же
+              — анонсы новых калькуляторов и разборы из мастерской.
+            </p>
+          </div>
+          <TelegramChannelButton label="Открыть канал" />
         </section>
 
         {/* Переход к помощнику */}

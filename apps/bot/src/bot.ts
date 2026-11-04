@@ -8,6 +8,7 @@
 import path from "node:path";
 import { FileAdapter } from "@grammyjs/storage-file";
 import { Bot, GrammyError, HttpError, session } from "grammy";
+import { ChannelPublishError, publishChannelPost } from "./channel";
 import { config } from "./config";
 import { analogWizard } from "./flows/analog";
 import { assistantWizard, handleAssistantCallback } from "./flows/assistant";
@@ -18,6 +19,7 @@ import { startMeasure, measureWizard } from "./flows/measure";
 import { profitWizard, showStats } from "./flows/profit";
 import { searchWizard } from "./flows/search";
 import { registerJournal } from "./journal";
+import { canPublish } from "./lib/channel";
 import { logger } from "./lib/logger";
 import { mainMenu } from "./lib/reply";
 import { initialSession, type MyContext, type SessionData } from "./session";
@@ -78,6 +80,7 @@ const HELP_TEXT = [
   "/year — итоги года",
   "/cancel — прервать расчёт",
   "/menu — главное меню",
+  "/post — опубликовать пост в канале с кнопками (только владелец)",
 ].join("\n");
 
 /**
@@ -160,7 +163,16 @@ export function createBot(
     if (wizard) await startWizard(ctx, wizard);
   };
 
-  bot.command("start", (ctx) => showMenu(ctx, true));
+  bot.command("start", (ctx) => {
+    // Ссылка вида t.me/бот?start=cut открывает нужный сценарий сразу:
+    // Telegram присылает её как /start с полезной нагрузкой.
+    const payload = ctx.match?.trim();
+    if (payload && FLOWS[payload]) {
+      void startFlow(ctx, payload);
+      return;
+    }
+    void showMenu(ctx, true);
+  });
   bot.command("menu", (ctx) => showMenu(ctx));
   bot.command("stats", (ctx) => startFlow(ctx, "stats"));
   bot.command("help", (ctx) => ctx.reply(HELP_TEXT));
@@ -177,6 +189,25 @@ export function createBot(
   bot.command("calc", (ctx) => startFlow(ctx, "cut"));
   // /measure — мерки: сценарий подставляет прежние значения
   bot.command("measure", (ctx) => startFlow(ctx, "measure"));
+
+  // ---------- Пост в канал: бот пишет сам, с кнопками ----------
+  bot.command("post", async (ctx) => {
+    if (!canPublish(ctx.from?.id, config.ownerIds)) {
+      await ctx.reply("Публиковать в канал может только владелец.");
+      return;
+    }
+    try {
+      // Без своего текста бот берёт заготовленный пост с кнопками.
+      const post = await publishChannelPost(bot, { text: ctx.match });
+      await ctx.reply(`Готово. Пост с кнопками в канале — сообщение ${post.messageId}.`);
+    } catch (error) {
+      const reason =
+        error instanceof ChannelPublishError
+          ? error.message
+          : "Что-то пошло не так. Попробуй ещё раз: /post";
+      await ctx.reply(`Не получилось опубликовать: ${reason}`);
+    }
+  });
 
   // ---------- Журнал шитья: те же записи, что и на странице ----------
   // Команды регистрируем до общего обработчика текста: иначе сообщение
