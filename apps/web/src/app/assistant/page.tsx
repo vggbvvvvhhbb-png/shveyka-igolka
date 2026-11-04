@@ -2,6 +2,7 @@ import Link from "next/link";
 import { isUuid, isWorkMode, type Source } from "@shveyka/core";
 import { getDbSingleton, queries } from "@shveyka/db";
 import { ChatWidget, type Message } from "@/components/ChatWidget";
+import { TelegramBotButton } from "@/components/TelegramBotButton";
 
 export const dynamic = "force-dynamic";
 
@@ -82,6 +83,14 @@ export default async function AssistantPage({
         initialMessage={conversationId ? undefined : (q ?? question)}
         ctx={ctx}
       />
+
+      <div className="flex flex-col gap-3 border-t border-hair pt-5 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-sm text-ink-2">
+          Удобнее в мессенджере? Там тот же помощник и пять калькуляторов — считает на ходу, пока
+          ткань ещё в руках.
+        </p>
+        <TelegramBotButton label="Спросить в Telegram" variant="quiet" />
+      </div>
     </div>
   );
 }

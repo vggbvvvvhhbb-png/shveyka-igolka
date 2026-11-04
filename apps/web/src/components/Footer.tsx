@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { TelegramBotButton } from "@/components/TelegramBotButton";
+import { TelegramMark } from "@/components/TelegramMark";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
 /**
@@ -82,6 +84,21 @@ export function Footer() {
               </ul>
             </div>
           ))}
+        </div>
+
+        <div className="mt-8 flex flex-col gap-4 border-t border-hair pt-6 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3">
+            <span className="mt-0.5 shrink-0 text-green">
+              <TelegramMark className="h-6 w-6" />
+            </span>
+            <div>
+              <p className="font-title text-lg font-bold text-ink">Швейка в Telegram</p>
+              <p className="text-sm text-ink-2">
+                Тот же помощник и пять калькуляторов — прямо в чате.
+              </p>
+            </div>
+          </div>
+          <TelegramBotButton label="Открыть бота" />
         </div>
 
         <div className="mt-10 flex flex-col gap-4 border-t border-hair pt-4 sm:flex-row sm:items-center sm:justify-between">
