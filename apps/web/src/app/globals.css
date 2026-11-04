@@ -363,6 +363,31 @@
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
   }
+
+  /* Строка меню, которая прокручивается вбок. Полосы прокрутки у неё нет,
+     поэтому приглушённый край подсказывает: с этой стороны есть ещё
+     пункты, их надо доскроллить. Без приглушения обрезка строки
+     выглядит как ошибка вёрстки. */
+  .nav-scroll[data-fade-right="true"] {
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
+    mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
+  }
+
+  .nav-scroll[data-fade-left="true"] {
+    -webkit-mask-image: linear-gradient(to right, transparent, #000 28px);
+    mask-image: linear-gradient(to right, transparent, #000 28px);
+  }
+
+  .nav-scroll[data-fade-left="true"][data-fade-right="true"] {
+    -webkit-mask-image: linear-gradient(
+      to right,
+      transparent,
+      #000 28px,
+      #000 calc(100% - 28px),
+      transparent
+    );
+    mask-image: linear-gradient(to right, transparent, #000 28px, #000 calc(100% - 28px), transparent);
+  }
 }
 
 /* --- 5. Язык движения ----------------------------------------------------- */

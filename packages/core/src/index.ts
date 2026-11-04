@@ -32,3 +32,4 @@ export * from "./sewing/stats";
 export * from "./sewing/command";
 export * from "./sewing/legacyProjects";
 export * from "./sewing/item";
+export * from "./ui/scrollFade";

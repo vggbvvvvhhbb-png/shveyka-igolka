@@ -2,14 +2,20 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { scrollFadeEdges, type ScrollFadeEdges } from "@shveyka/core";
 
 /**
  * Шапка «Атласа».
  *
  * Римские цифры перед пунктами — номера таблиц определителя. Активный пункт
  * помечен зелёным и красным пунктирным стежком. При прокрутке строка
- * калькуляторов убирается, и шапка сжимается до одной строки.
+ * калькуляторов убирается, и шапка сжимается.
+ *
+ * На узком экране логотип и разделы стоят друг под другом. Иначе рядом с
+ * логотипом под разделы остаётся меньше трети строки, и половина меню
+ * уезжает за край. Строка разделов прокручивается вбок, а приглушённый
+ * край подсказывает, что справа есть ещё пункты.
  */
 
 const navItems = [
@@ -47,9 +53,51 @@ function NeedleMark() {
   );
 }
 
+/**
+ * Подсказка прокрутки для строки меню.
+ *
+ * Возвращает ссылку на строку и края, которые нужно приглушить: пока
+ * строка прокручивается, приглушённый край видно, и читатель понимает,
+ * что в стороне есть ещё пункты.
+ */
+function useScrollFade<T extends HTMLElement>() {
+  const ref = useRef<T | null>(null);
+  const [edges, setEdges] = useState<ScrollFadeEdges>({ left: false, right: false });
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+
+    const update = () => {
+      const next = scrollFadeEdges({
+        scrollWidth: el.scrollWidth,
+        clientWidth: el.clientWidth,
+        scrollLeft: el.scrollLeft,
+      });
+      // Состояние меняем только при реальном изменении: иначе каждое
+      // обновление вызывало бы перерисовку шапки.
+      setEdges((prev) => (prev.left === next.left && prev.right === next.right ? prev : next));
+    };
+
+    update();
+    el.addEventListener("scroll", update, { passive: true });
+    // Ширина строки меняется при повороте экрана и при смене шрифта.
+    const observer = new ResizeObserver(update);
+    observer.observe(el);
+    return () => {
+      el.removeEventListener("scroll", update);
+      observer.disconnect();
+    };
+  }, []);
+
+  return { ref, edges };
+}
+
 export function Header() {
   const pathname = usePathname();
   const [compact, setCompact] = useState(false);
+  const sections = useScrollFade<HTMLElement>();
+  const calculators = useScrollFade<HTMLElement>();
 
   // Шапка сжимается, когда страница прокручена.
   useEffect(() => {
@@ -61,14 +109,19 @@ export function Header() {
 
   return (
     <header data-compact={compact} className="sticky top-0 z-30 border-b border-hair bg-paper">
-      <div className="mx-auto max-w-5xl px-4 py-4">
-        <div className="flex items-center justify-between gap-6">
-          <Link href="/" className="flex items-center gap-2 text-green">
+      <div className="mx-auto max-w-5xl px-4 py-3 md:py-4">
+        <div className="flex flex-col gap-2 min-[840px]:flex-row min-[840px]:items-center min-[840px]:justify-between min-[840px]:gap-6">
+          <Link href="/" className="flex shrink-0 items-center gap-2 text-green">
             <NeedleMark />
             <span className="font-title text-2xl font-bold">Швейка</span>
           </Link>
 
-          <nav className="flex gap-1 overflow-x-auto scrollbar-hide">
+          <nav
+            ref={sections.ref}
+            data-fade-left={sections.edges.left ? "true" : "false"}
+            data-fade-right={sections.edges.right ? "true" : "false"}
+            className="nav-scroll flex min-w-0 gap-1 overflow-x-auto scrollbar-hide"
+          >
             {navItems.map((item) => {
               const isActive = pathname === item.href;
               return (
@@ -90,7 +143,12 @@ export function Header() {
 
         <div className="header-calculators mt-3 flex items-center gap-2 overflow-hidden border-t border-hair pt-3">
           <span className="shrink-0 font-latin text-sm italic text-ink-3">Калькуляторы:</span>
-          <nav className="flex gap-1 overflow-x-auto scrollbar-hide">
+          <nav
+            ref={calculators.ref}
+            data-fade-left={calculators.edges.left ? "true" : "false"}
+            data-fade-right={calculators.edges.right ? "true" : "false"}
+            className="nav-scroll flex min-w-0 gap-1 overflow-x-auto scrollbar-hide"
+          >
             {calculatorItems.map((item) => {
               const isActive = pathname === item.href;
               return (
