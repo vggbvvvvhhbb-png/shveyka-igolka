@@ -11,6 +11,7 @@ import { dedupeSources, exaSearch, ExaError } from "./exa";
 import { navigate } from "./navigator";
 import { buildSkillMessages, budgetFor, SKILLS, type SkillName } from "./skills";
 import { countCitations, parseAnswer } from "./answerFormat";
+import { addUsage, emptyUsage, type TokenUsage } from "./usage";
 import type { Source } from "./source";
 import type { AnswerMode } from "./modes";
 
@@ -55,6 +56,8 @@ export type PipelineResult = {
   degraded: string | null;
   /** Вопросы для кнопок под ответом. */
   followUps: string[];
+  /** Расход токенов: планировщик поиска плюс ответ. */
+  usage: TokenUsage;
 };
 
 /**
@@ -124,6 +127,8 @@ export async function runPipeline(
 
   let sources: Source[] = [];
   let degraded: string | null = null;
+  // Расход копится из двух источников: планировщик поиска и ответ модели.
+  let usage = emptyUsage();
 
   if (input.mode === "search") {
     steps.push("Планирую запросы");
@@ -131,6 +136,7 @@ export async function runPipeline(
       models: navigatorChain,
       maxQueries: skill.maxQueries,
     });
+    usage = addUsage(usage, plan.usage ?? emptyUsage());
     steps.push(`Ищу в интернете: ${plan.queries.length}`);
     const found = await collectSources(plan.queries, skill.maxSources, input.question);
     sources = found.sources;
@@ -143,6 +149,7 @@ export async function runPipeline(
       models: navigatorChain,
       maxQueries: skill.maxQueries,
     });
+    usage = addUsage(usage, plan.usage ?? emptyUsage());
     if (plan.needWeb) {
       steps.push(`Сверяю с интернетом: ${plan.queries.length}`);
       const found = await collectSources(plan.queries, skill.maxSources, input.question);
@@ -157,6 +164,7 @@ export async function runPipeline(
       models: navigatorChain,
       maxQueries: skill.maxQueries,
     });
+    usage = addUsage(usage, plan.usage ?? emptyUsage());
     steps.push(`Ищу в интернете: ${plan.queries.length}`);
     const found = await collectSources(plan.queries, skill.maxSources, input.question);
     sources = found.sources;
@@ -186,6 +194,8 @@ export async function runPipeline(
   // в интерфейсе он показан кнопками, а не текстом в конце ответа.
   const cleaned = parseAnswer(result.text);
 
+  usage = addUsage(usage, result.usage ?? emptyUsage());
+
   if (sources.length > 0 && countCitations(cleaned.text) === 0) {
     console.warn("[pipeline] ответ без ссылок на источники", { mode: input.mode });
   }
@@ -197,5 +207,6 @@ export async function runPipeline(
     model: result.model,
     degraded,
     followUps: cleaned.followUps,
+    usage,
   };
 }

@@ -8,6 +8,7 @@
 
 import { z } from "zod";
 import { chat, modelChain, type ChatTurn, type ModelChain } from "./llm";
+import type { TokenUsage } from "./usage";
 
 /** План поиска: запросы и признак того, нужен ли интернет. */
 export type Plan = {
@@ -17,6 +18,8 @@ export type Plan = {
   subqueries: string[];
   /** Нужен ли интернет для ответа. */
   needWeb: boolean;
+  /** Расход токенов планировщика: он тоже зовёт модель. */
+  usage?: TokenUsage | null;
 };
 
 const PlanSchema = z.object({
@@ -130,7 +133,7 @@ export async function navigate(question: string, options: NavigateOptions = {}):
     });
     const plan = parsePlan(result.text, question);
     const maxQueries = options.maxQueries ?? 3;
-    return { ...plan, queries: plan.queries.slice(0, maxQueries) };
+    return { ...plan, queries: plan.queries.slice(0, maxQueries), usage: result.usage };
   } catch (err) {
     console.warn("[navigator] план собран без модели", {
       name: err instanceof Error ? err.name : "unknown",
