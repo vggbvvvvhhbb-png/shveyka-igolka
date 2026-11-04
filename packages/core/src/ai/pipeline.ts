@@ -9,6 +9,7 @@
 import { chat, modelChain, type ChatTurn, type ModelChain } from "./llm";
 import { dedupeSources, exaSearch, ExaError } from "./exa";
 import { navigate } from "./navigator";
+import { freeModelsNotice } from "./providerStatus";
 import { buildSkillMessages, budgetFor, SKILLS, type SkillName } from "./skills";
 import { countCitations, parseAnswer } from "./answerFormat";
 import { addUsage, emptyUsage, type TokenUsage } from "./usage";
@@ -54,6 +55,14 @@ export type PipelineResult = {
   model: string;
   /** Что не удалось, если не удалось. */
   degraded: string | null;
+  /**
+   * Что стоит сказать человеку про сам ответ.
+   *
+   * Отдельное поле, а не часть текста: это не ответ по существу, а
+   * честная заметка о том, как ответ получен — например, что свободные
+   * модели сегодня не проверены и ответила платная.
+   */
+  notice: string | null;
   /** Вопросы для кнопок под ответом. */
   followUps: string[];
   /** Расход токенов: планировщик поиска плюс ответ. */
@@ -127,6 +136,8 @@ export async function runPipeline(
 
   let sources: Source[] = [];
   let degraded: string | null = null;
+  // Ответ ушёл на платную модель: хотя бы одна свободная была недоступна.
+  let paidFallback = false;
   // Расход копится из двух источников: планировщик поиска и ответ модели.
   let usage = emptyUsage();
 
@@ -137,6 +148,7 @@ export async function runPipeline(
       maxQueries: skill.maxQueries,
     });
     usage = addUsage(usage, plan.usage ?? emptyUsage());
+    paidFallback = paidFallback || plan.paidFallback === true;
     steps.push(`Ищу в интернете: ${plan.queries.length}`);
     const found = await collectSources(plan.queries, skill.maxSources, input.question);
     sources = found.sources;
@@ -150,6 +162,7 @@ export async function runPipeline(
       maxQueries: skill.maxQueries,
     });
     usage = addUsage(usage, plan.usage ?? emptyUsage());
+    paidFallback = paidFallback || plan.paidFallback === true;
     if (plan.needWeb) {
       steps.push(`Сверяю с интернетом: ${plan.queries.length}`);
       const found = await collectSources(plan.queries, skill.maxSources, input.question);
@@ -165,6 +178,7 @@ export async function runPipeline(
       maxQueries: skill.maxQueries,
     });
     usage = addUsage(usage, plan.usage ?? emptyUsage());
+    paidFallback = paidFallback || plan.paidFallback === true;
     steps.push(`Ищу в интернете: ${plan.queries.length}`);
     const found = await collectSources(plan.queries, skill.maxSources, input.question);
     sources = found.sources;
@@ -189,6 +203,7 @@ export async function runPipeline(
     // и время до ответа важнее его глубины.
     reasoningEffort: input.style === "short" ? undefined : skill.reasoningEffort,
   });
+  paidFallback = paidFallback || result.paidFallback;
 
   // Текст приводится к читаемому виду, а блок вопросов выносится отдельно:
   // в интерфейсе он показан кнопками, а не текстом в конце ответа.
@@ -206,6 +221,7 @@ export async function runPipeline(
     steps,
     model: result.model,
     degraded,
+    notice: paidFallback ? freeModelsNotice() : null,
     followUps: cleaned.followUps,
     usage,
   };

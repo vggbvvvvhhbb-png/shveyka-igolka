@@ -7,6 +7,7 @@
  */
 
 import { config } from "../config";
+import { encodeUserName } from "@shveyka/core";
 
 /** Сколько ждём ответ сайта. */
 const REQUEST_TIMEOUT_MS = 60_000;
@@ -122,12 +123,17 @@ export interface BotUser {
   name?: string;
 }
 
-/** Заголовки, которыми бот говорит сайту, кто именно спрашивает. */
+/**
+ * Заголовки, которыми бот говорит сайту, кто именно спрашивает.
+ *
+ * Имя кодируется: в Telegram оно часто на русском, а значение заголовка —
+ * байтовая строка, и кириллица в ней ломает запрос целиком.
+ */
 function userHeaders(user: BotUser | null | undefined): Record<string, string> {
   if (!user || !Number.isFinite(user.id) || user.id === 0) return {};
   const headers: Record<string, string> = { "X-Shveyka-User": `tg:${user.id}` };
   const name = user.name?.trim();
-  if (name) headers["X-Shveyka-User-Name"] = name;
+  if (name) headers["X-Shveyka-User-Name"] = encodeUserName(name);
   return headers;
 }
 

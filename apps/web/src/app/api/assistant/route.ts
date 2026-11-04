@@ -9,9 +9,10 @@ import {
   groupContext,
   isUuid,
   isWebWorkMode,
-  missingWebModeEnv,
   prepareChat,
   suggestNearest,
+  webModeCanAnswer,
+  webServicesStatus,
   type AnswerMode,
 } from "@shveyka/core";
 import { buildCatalogText } from "@shveyka/core/ai/catalogText";
@@ -103,18 +104,26 @@ export async function POST(req: Request): Promise<Response> {
     return errorResponse("Этот режим работает в разделе «Каталог»", 400, requestId);
   }
 
-  // Без ключей провайдеров режим работать не будет. Отдельный текст нужен
-  // для владельца сервера: в лог попадают имена недостающих переменных,
-  // а пользователь видит, что режим пока недоступен, и может вернуться
-  // в «Каталог».
-  const missing = missingWebModeEnv();
-  if (missing.length > 0) {
-    console.error("[assistant] режимы с интернетом не настроены", { requestId, missing });
+  // Ключи у режимов с интернетом разные: один — для поиска, другой — для
+  // моделей. Без ключа моделей ответ невозможен вовсе, и режим выключается.
+  // Без ключа поиска ответ возможен — по каталогу: об этом честно говорит
+  // сам конвейер, помечая ответ словом «Интернет недоступен».
+  const services = webServicesStatus();
+  if (!webModeCanAnswer()) {
+    console.error("[assistant] режимы с интернетом не настроены", {
+      requestId,
+      missing: services.missing,
+    });
     return errorResponse(
-      "Режимы с интернетом пока не настроены на сервере, попробуйте режим «Каталог»",
+      "Режимы с интернетом пока недоступны, попробуйте режим «Каталог»",
       503,
       requestId
     );
+  }
+  if (services.search === "missing") {
+    console.warn("[assistant] ключ поиска не задан: ответ будет только по каталогу", {
+      requestId,
+    });
   }
 
   try {
@@ -216,6 +225,10 @@ export async function POST(req: Request): Promise<Response> {
         steps: result.steps,
         model: result.model,
         degraded: result.degraded,
+        // Заметка о том, как получен ответ: например, что свободные модели
+        // сегодня не проверены и ответила платная. Это не часть ответа,
+        // а честное объяснение, почему он шёл долго.
+        notice: result.notice ?? null,
         followUps: result.followUps,
         // Записи каталога, попавшие в ответ: интерфейс показывает их
         // карточками, чтобы можно было сразу перейти к записи. Вместе со

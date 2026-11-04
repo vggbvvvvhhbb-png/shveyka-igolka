@@ -53,6 +53,13 @@ export type Message = {
   followUps?: string[];
   /** Записи каталога, попавшие в ответ. */
   related?: RelatedItem[];
+  /**
+   * Заметка о том, как получен ответ.
+   *
+   * Например: свободные модели сегодня не проверены, и ответила платная.
+   * Показывается под ответом, чтобы человек знал, почему ответ шёл долго.
+   */
+  notice?: string | null;
 };
 
 const MAX_MESSAGES = 10;
@@ -185,6 +192,7 @@ export function ChatWidget({
               sources: answer.sources,
               steps: answer.steps,
               model: answer.model,
+              notice: answer.notice ?? null,
               followUps: answer.followUps ?? [],
               related: answer.related ?? [],
             };
@@ -389,6 +397,12 @@ export function ChatWidget({
                   )}
 
                   {m.sources && m.sources.length > 0 && <SourceList sources={m.sources} />}
+
+                  {m.notice && (
+                    <p className="rounded-plate border border-hair bg-paper-hi px-3 py-2 text-xs text-ink-2">
+                      {m.notice}
+                    </p>
+                  )}
 
                   {m.related && m.related.length > 0 && (
                     <div className="rounded-plate border border-hair bg-paper-hi p-3">

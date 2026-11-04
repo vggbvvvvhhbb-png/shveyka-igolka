@@ -20,6 +20,14 @@ export type Plan = {
   needWeb: boolean;
   /** Расход токенов планировщика: он тоже зовёт модель. */
   usage?: TokenUsage | null;
+  /**
+   * Ответ дала платная модель: свободные были недоступны.
+   *
+   * Планировщик молча переходит на платную модель, когда провайдер требует
+   * ежедневной проверки. Отметка нужна, чтобы конвейер мог честно сказать
+   * об этом в ответе.
+   */
+  paidFallback?: boolean;
 };
 
 const PlanSchema = z.object({
@@ -133,7 +141,12 @@ export async function navigate(question: string, options: NavigateOptions = {}):
     });
     const plan = parsePlan(result.text, question);
     const maxQueries = options.maxQueries ?? 3;
-    return { ...plan, queries: plan.queries.slice(0, maxQueries), usage: result.usage };
+    return {
+      ...plan,
+      queries: plan.queries.slice(0, maxQueries),
+      usage: result.usage,
+      paidFallback: result.paidFallback,
+    };
   } catch (err) {
     console.warn("[navigator] план собран без модели", {
       name: err instanceof Error ? err.name : "unknown",

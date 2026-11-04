@@ -68,6 +68,7 @@ const PIPELINE_RESULT = {
   steps: ["Ищу в интернете", "Собираю ответ"],
   model: "free/gpt-6-luna",
   degraded: null,
+  notice: null,
   usage: { promptTokens: 900, completionTokens: 300, totalTokens: 1200 },
 };
 
@@ -129,6 +130,18 @@ describe("POST /api/assistant", () => {
     expect(body.model).toBe("free/gpt-6-luna");
   });
 
+  it("заметка о платной модели доходит до человека", async () => {
+    mocks.runPipeline.mockResolvedValue({
+      ...PIPELINE_RESULT,
+      notice: "Бесплатные модели сегодня не проверены. Ответ дала платная модель.",
+    });
+    const POST = await loadRoute();
+    const res = await POST(assistantRequest({ message: "какая игла", mode: "search" }));
+    const body = (await res.json()) as { notice: string | null };
+
+    expect(body.notice).toContain("платная модель");
+  });
+
   it("вопрос и режим доходят до конвейера", async () => {
     const POST = await loadRoute();
     await POST(assistantRequest({ message: "какая игла", mode: "reason", style: "short" }));
@@ -166,24 +179,24 @@ describe("POST /api/assistant", () => {
     expect(res.status).toBe(400);
   });
 
-  it("без ключей провайдеров → 503 и никаких обращений к ним", async () => {
-    vi.stubEnv("EXA_API_KEY", "");
+  it("без ключа модели → 503 и никаких обращений к провайдерам", async () => {
+    vi.stubEnv("APINEX_API_KEY", "");
     const POST = await loadRoute();
     const res = await POST(assistantRequest({ message: "какая игла", mode: "search" }));
     const body = (await res.json()) as { error: string };
 
     expect(res.status).toBe(503);
-    expect(body.error).toContain("не настроены");
+    expect(body.error).toContain("недоступны");
     expect(mocks.runPipeline).not.toHaveBeenCalled();
   });
 
-  it("без ключа модели — тоже 503", async () => {
-    vi.stubEnv("APINEX_API_KEY", "");
+  it("без ключа поиска режим отвечает по каталогу, а не падает", async () => {
+    vi.stubEnv("EXA_API_KEY", "");
     const POST = await loadRoute();
     const res = await POST(assistantRequest({ message: "какая игла", mode: "search" }));
 
-    expect(res.status).toBe(503);
-    expect(mocks.runPipeline).not.toHaveBeenCalled();
+    expect(res.status).toBe(200);
+    expect(mocks.runPipeline).toHaveBeenCalledTimes(1);
   });
 
   it("лимит провайдера → 429 с понятным текстом", async () => {

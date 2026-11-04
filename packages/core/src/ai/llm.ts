@@ -7,6 +7,12 @@
  */
 
 import { parseProviderUsage, type TokenUsage } from "./usage";
+import {
+  isFreeModel,
+  noteCheckInRequired,
+  noteProviderFailure,
+  noteProviderSuccess,
+} from "./providerStatus";
 
 /** Роль сообщения в диалоге с моделью. */
 export type ChatRole = "system" | "user" | "assistant";
@@ -176,6 +182,15 @@ export type ChatResult = {
   model: string;
   /** Расход токенов, если провайдер прислал счётчик. */
   usage: TokenUsage | null;
+  /**
+   * Ответ дала платная модель, потому что бесплатные были недоступны.
+   *
+   * Бесплатный тариф требует ежедневной проверки на сайте провайдера.
+   * Когда проверки не было, он отвечает 402, и цепочка уходит на платные
+   * модели. Факт отмечается явно: ответ работает, но идёт дольше и стоит
+   * денег, и человек должен об этом знать.
+   */
+  paidFallback: boolean;
 };
 
 type ApiMessage = { role: ChatRole; content: string };
@@ -288,6 +303,12 @@ async function askModel(
       // Тело ответа помогает понять причину (402 — нет кредитов, 404 — нет
       // такой модели), но наружу оно не выходит: клиент получает обобщённый текст.
       const detail = await response.text().catch(() => "");
+      // 402 на бесплатной модели означает одно: провайдер просит ежедневную
+      // проверку. Это не поломка, но ответ уйдёт на платную модель — значит,
+      // об этом надо сказать честно.
+      if (response.status === 402 && isFreeModel(model)) {
+        noteCheckInRequired(model);
+      }
       console.error("[llm] provider responded with an error", {
         model,
         status: response.status,
@@ -328,18 +349,27 @@ export async function chat(options: ChatOptions): Promise<ChatResult> {
 
   const baseUrl = (process.env.APINEX_BASE_URL ?? DEFAULT_BASE_URL).replace(/\/+$/, "");
   let lastError: LlmError | null = null;
+  // Ответ ушёл на платную модель: хотя бы одна свободная была недоступна.
+  let paidFallback = false;
 
   for (const model of options.models) {
     try {
       const answer = await askModel(model, options, apiKey, baseUrl);
-      return { text: answer.text, model, usage: answer.usage };
+      noteProviderSuccess(model);
+      return { text: answer.text, model, usage: answer.usage, paidFallback };
     } catch (err) {
       lastError = err instanceof LlmError ? err : new LlmError("Модель не ответила", model);
+      noteProviderFailure(model, lastError.status ?? null);
       console.warn("[llm] модель не подошла, пробуем следующую", {
         model,
         name: lastError.name,
         status: lastError.status,
       });
+      // Бесплатная модель недоступна до проверки провайдера: дальше ответят
+      // платные, и об этом нужно сказать человеку прямо.
+      if (lastError.status === 402 && isFreeModel(model)) {
+        paidFallback = true;
+      }
       // Лимит запросов общий для аккаунта: следующая модель его не обойдёт,
       // поэтому дальше не идём и отдаём понятную ошибку.
       if (lastError.status === 429) throw lastError;

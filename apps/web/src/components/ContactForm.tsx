@@ -5,7 +5,7 @@ import { CONTACT_TOPICS, CONTACT_TOPIC_LABELS, type ContactTopic } from "@shveyk
 import { btnCls, inputCls } from "@/components/ui";
 
 /** Ответ сервера. */
-type SendResult = { ok: true; emailed: boolean } | { ok: false; error: string };
+type SendResult = { ok: true; emailed: boolean; mailReady: boolean } | { ok: false; error: string };
 
 /** Сколько символов можно написать в обращении. */
 const MAX_MESSAGE = 4000;
@@ -19,8 +19,17 @@ const MIN_MESSAGE = 10;
  * Пишется как письмо владельцу: тема выбирается кнопками, а не вводится
  * в поле, — так письма можно разбирать по полкам. Почта для ответа
  * необязательна: человек может просто рассказать, что случилось.
+ *
+ * mailReady и contactEmail приходят со страницы: без них форма не знает,
+ * может ли письмо уйти и куда писать напрямую, если не ушло.
  */
-export function ContactForm() {
+export function ContactForm({
+  mailReady,
+  contactEmail,
+}: {
+  mailReady: boolean;
+  contactEmail: string;
+}) {
   const [topic, setTopic] = useState<ContactTopic>("suggestion");
   const [name, setName] = useState("");
   const [contact, setContact] = useState("");
@@ -48,12 +57,12 @@ export function ContactForm() {
         }),
       });
       const data = (await res.json().catch(() => null)) as
-        | { ok: true; emailed: boolean }
+        | { ok: true; emailed: boolean; mailReady: boolean }
         | { error?: string }
         | null;
 
       if (data && "ok" in data && data.ok) {
-        setResult({ ok: true, emailed: data.emailed });
+        setResult({ ok: true, emailed: data.emailed, mailReady: data.mailReady });
         setMessage("");
         setName("");
         setContact("");
@@ -79,7 +88,9 @@ export function ContactForm() {
         <p className="text-ink-2">
           {result.emailed
             ? "Письмо отправлено на почту владельца сайта. Ответ придёт на почту, которую вы указали, — обычно в течение дня."
-            : "Обращение записано и сохранено. Если нужен ответ, оставьте почту для связи и напишите ещё раз."}
+            : result.mailReady
+              ? `Обращение записано и сохранено, но письмо не дошло. Напишите владельцу на ${contactEmail} — так быстрее.`
+              : `Обращение записано и сохранено. Письма с сайта сейчас не отправляются, поэтому напишите владельцу на ${contactEmail} — так он точно увидит обращение.`}
         </p>
         <p className="text-sm text-ink-3">
           Спасибо, что помогаете Швейке стать понятнее. Проблемы с ответом помощника можно отметить
@@ -136,7 +147,8 @@ export function ContactForm() {
             onChange={(e) => setContact(e.target.value)}
           />
           <span className="block text-xs text-ink-3">
-            Не обязательно. Если оставите почту, ответ придёт прямо на неё.
+            Не обязательно. Если оставите почту, ответ придёт прямо на неё
+            {mailReady ? "." : ", когда письма с сайта заработают."}
           </span>
         </label>
       </div>

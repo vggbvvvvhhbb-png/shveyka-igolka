@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { UsageSource } from "@shveyka/core";
+import { decodeUserName, type UsageSource } from "@shveyka/core";
 import { queries, type DatabaseClient } from "@shveyka/db";
 
 /**
@@ -21,7 +21,12 @@ export const USER_COOKIE = "shveyka_uid";
 /** Заголовок, которым бот передаёт идентификатор пользователя Telegram. */
 export const BOT_USER_HEADER = "x-shveyka-user";
 
-/** Заголовок, которым бот передаёт имя пользователя Telegram. */
+/**
+ * Заголовок, которым бот передаёт имя пользователя Telegram.
+ *
+ * Имя приходит закодированным: в Telegram оно часто на русском, а значение
+ * заголовка — байтовая строка, и кириллица в ней ломает запрос.
+ */
 export const BOT_USER_NAME_HEADER = "x-shveyka-user-name";
 
 /** Кто перед нами и откуда пришёл вопрос. */
@@ -52,10 +57,10 @@ export function resolveUsageUser(req: Request): UsageUser {
   // Бот передаёт идентификатор Telegram: он точнее анонимной cookie.
   const botUser = req.headers.get(BOT_USER_HEADER)?.trim();
   if (botUser) {
-    const label = req.headers.get(BOT_USER_NAME_HEADER)?.trim();
+    const label = decodeUserName(req.headers.get(BOT_USER_NAME_HEADER) ?? "");
     return {
       userKey: botUser,
-      userLabel: label && label.length > 0 ? label : null,
+      userLabel: label,
       source: "bot",
       setCookie: null,
     };

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ContactForm } from "@/components/ContactForm";
 import { Card, PageShell, SectionLabel } from "@/components/ui";
-import { contactEmail } from "@/lib/mail";
+import { contactEmail, mailConfigured } from "@/lib/mail";
 
 export const metadata: Metadata = {
   title: "Контакты для обращения — Швейка",
@@ -17,8 +17,14 @@ export const metadata: Metadata = {
  * Здесь человек пишет владельцу: предложение, жалобу или заметку об
  * ошибке. Обращение уходит письмом на почту, привязанную к сайту, и
  * остаётся в базе — письмо не потеряется.
+ *
+ * Если письма не настроены, страница говорит об этом прямо: обещать
+ * письмо, которое не уйдёт, нельзя.
  */
 export default function ContactsPage() {
+  const mailReady = mailConfigured();
+  const email = contactEmail();
+
   return (
     <PageShell
       title="Контакты для обращения"
@@ -27,7 +33,7 @@ export default function ContactsPage() {
     >
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_18rem]">
         <Card title="Форма обращения">
-          <ContactForm />
+          <ContactForm mailReady={mailReady} contactEmail={email} />
         </Card>
 
         <div className="space-y-6">
@@ -35,12 +41,21 @@ export default function ContactsPage() {
             <SectionLabel>Как это работает</SectionLabel>
             <ol className="space-y-2 text-sm text-ink-2">
               <li>1. Выбираете тему и пишете, что случилось.</li>
-              <li>2. Обращение уходит письмом владельцу сайта.</li>
+              <li>
+                2. Обращение{" "}
+                {mailReady ? "уходит письмом владельцу сайта." : "записывается и хранится."}
+              </li>
               <li>3. Ответ приходит на почту, если вы её оставили.</li>
             </ol>
+            {!mailReady && (
+              <p className="text-sm text-thread">
+                Отправка писем с сайта сейчас не настроена. Обращение сохранится, но чтобы его точно
+                увидели — напишите напрямую на почту владельца.
+              </p>
+            )}
             <p className="text-sm text-ink-2">
-              Письма приходят на <span className="font-latin text-ink">{contactEmail()}</span>.
-              Можно написать и на эту почту напрямую.
+              Письма приходят на <span className="font-latin text-ink">{email}</span>. Можно
+              написать и на эту почту напрямую.
             </p>
           </Card>
 

@@ -20,6 +20,41 @@ export const PROVIDER_URLS: Record<ChatProvider, string> = {
   relay: "https://relay.fast/v1/chat/completions",
 };
 
+/** Переменные с ключами провайдеров: по ней видно, что настроено. */
+export const PROVIDER_KEY_ENV: Record<ChatProvider, string> = {
+  kimi: "KIMI_API_KEY",
+  anthropic: "ANTHROPIC_API_KEY",
+  openrouter: "OPENROUTER_API_KEY",
+  relay: "RELAY_API_KEY",
+};
+
+/** Как провайдер называется для человека. */
+export const PROVIDER_LABELS: Record<ChatProvider, string> = {
+  kimi: "Kimi (Moonshot)",
+  anthropic: "Anthropic",
+  openrouter: "OpenRouter",
+  relay: "relay.fast",
+};
+
+/**
+ * Ключ провайдера.
+ *
+ * Значение ключа не возвращается: наружу идёт только имя переменной,
+ * чтобы по нему было видно, что именно не задано.
+ */
+export function providerKeyEnv(provider: ChatProvider): string {
+  return PROVIDER_KEY_ENV[provider];
+}
+
+/** Задан ли ключ провайдера. */
+export function providerReady(
+  provider: ChatProvider,
+  env: Record<string, string | undefined> = process.env
+): boolean {
+  const value = env[PROVIDER_KEY_ENV[provider]];
+  return typeof value === "string" && value.trim().length > 0;
+}
+
 /**
  * Приводит значение AI_PROVIDER к известному провайдеру.
  * Неизвестное значение трактуется как kimi — как и раньше.

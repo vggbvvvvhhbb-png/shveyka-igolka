@@ -57,6 +57,13 @@ export const AssistantResponseSchema = z.object({
   model: z.string(),
   /** Что не удалось, если не удалось. */
   degraded: z.string().nullable(),
+  /**
+   * Заметка о том, как получен ответ.
+   *
+   * Например: свободные модели сегодня не проверены, и ответила платная.
+   * Это не часть ответа, а честное объяснение, почему он шёл долго.
+   */
+  notice: z.string().nullable().default(null),
   /** Вопросы для кнопок под ответом. */
   followUps: z.array(z.string()).max(4).default([]),
   /**

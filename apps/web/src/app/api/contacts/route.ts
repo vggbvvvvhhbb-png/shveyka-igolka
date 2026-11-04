@@ -3,7 +3,7 @@ import { CONTACT_TOPIC_LABELS, validateContactRequest } from "@shveyka/core";
 import { getDbSingleton, queries } from "@shveyka/db";
 import { errorResponse, logFailure } from "@/lib/apiResponse";
 import { clientIp, limitRequest } from "@/lib/guard";
-import { looksLikeEmail, sendMail } from "@/lib/mail";
+import { looksLikeEmail, mailConfigured, sendMail } from "@/lib/mail";
 
 export const dynamic = "force-dynamic";
 
@@ -81,7 +81,10 @@ export async function POST(req: Request): Promise<Response> {
       await queries.markContactEmailed(db, saved.id);
     }
 
-    return NextResponse.json({ ok: true, emailed });
+    // mailReady отвечает на вопрос «письмо вообще может уйти»: если SMTP не
+    // настроен, форма должна честно сказать об этом, а не просить человека
+    // отправить обращение ещё раз.
+    return NextResponse.json({ ok: true, emailed, mailReady: mailConfigured() });
   } catch (err) {
     logFailure("contacts", requestId, err);
     return errorResponse(GENERIC_ERROR, 500, requestId);

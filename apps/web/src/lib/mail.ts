@@ -12,26 +12,30 @@
  *   SMTP_PASS     — пароль приложения (для Gmail — код приложения)
  *   CONTACT_EMAIL — куда приходят обращения
  *
+ * Пустая переменная считается незаданной: иначе пустой порт или пустой
+ * адрес получателя ломают отправку молча.
+ *
  * Если SMTP не настроен, письма не уходят: обращение всё равно сохраняется
- * в базе, а человек получает подсказку, куда написать самому.
+ * в базе, а человек получает честный ответ — что форма сработала, но
+ * письмо не отправлено.
  */
 
 import nodemailer from "nodemailer";
 
-/** Почта, куда уходят обращения. */
-const CONTACT_EMAIL = process.env.CONTACT_EMAIL ?? "vggbvvvvhhbb@gmail.com";
+/** Почта, куда приходят обращения. */
+const CONTACT_EMAIL = process.env.CONTACT_EMAIL?.trim() || "vggbvvvvhhbb@gmail.com";
 
 /** Сервер отправки писем. */
-const SMTP_HOST = process.env.SMTP_HOST ?? "smtp.gmail.com";
+const SMTP_HOST = process.env.SMTP_HOST?.trim() || "smtp.gmail.com";
 
 /** Порт отправки писем. */
-const SMTP_PORT = Number(process.env.SMTP_PORT ?? 465);
+const SMTP_PORT = Number(process.env.SMTP_PORT?.trim() || 465) || 465;
 
 /** Почта отправителя. */
-const SMTP_USER = process.env.SMTP_USER ?? "";
+const SMTP_USER = process.env.SMTP_USER?.trim() || "";
 
 /** Пароль приложения. */
-const SMTP_PASS = process.env.SMTP_PASS ?? "";
+const SMTP_PASS = process.env.SMTP_PASS?.trim() || "";
 
 /** Письмо. */
 export interface MailMessage {
@@ -61,12 +65,25 @@ function transporter(): Transporter {
 
 /** Настроена ли отправка писем. */
 export function mailConfigured(): boolean {
-  return SMTP_USER.trim().length > 0 && SMTP_PASS.trim().length > 0;
+  return SMTP_USER.length > 0 && SMTP_PASS.length > 0;
 }
 
 /** Куда приходят обращения. */
 export function contactEmail(): string {
   return CONTACT_EMAIL;
+}
+
+/**
+ * Чего не хватает для отправки писем.
+ *
+ * Возвращаются только имена переменных, без значений: в лог попадает,
+ * что именно не задано, а сам пароль — никогда.
+ */
+export function mailMissingEnv(): string[] {
+  const missing: string[] = [];
+  if (SMTP_USER.length === 0) missing.push("SMTP_USER");
+  if (SMTP_PASS.length === 0) missing.push("SMTP_PASS");
+  return missing;
 }
 
 /**
@@ -77,7 +94,14 @@ export function contactEmail(): string {
  * сообщают человеку, а не прячут.
  */
 export async function sendMail(message: MailMessage): Promise<boolean> {
-  if (!mailConfigured()) return false;
+  if (!mailConfigured()) {
+    // Без этого сообщения в логах нет ни слова о причине: диагностика
+    // письма упирается в догадки.
+    console.error("[mail] отправка не настроена, письмо не отправлено", {
+      missing: mailMissingEnv(),
+    });
+    return false;
+  }
   try {
     await transporter().sendMail({
       from: SMTP_USER,
@@ -86,10 +110,17 @@ export async function sendMail(message: MailMessage): Promise<boolean> {
       text: message.text,
       ...(message.replyTo ? { replyTo: message.replyTo } : {}),
     });
+    console.info("[mail] письмо отправлено", { to: CONTACT_EMAIL });
     return true;
   } catch (err) {
     const name = err instanceof Error ? err.name : "unknown";
-    console.error("[mail] письмо не отправлено", { name });
+    // Код ошибки nodemailer (EAUTH, ECONNECTION…) — по нему видно, что
+    // именно сломалось: пароль, сеть или сервер.
+    const code =
+      typeof err === "object" && err !== null && "code" in err
+        ? String((err as { code?: unknown }).code ?? "")
+        : "";
+    console.error("[mail] письмо не отправлено", { name, code });
     return false;
   }
 }
