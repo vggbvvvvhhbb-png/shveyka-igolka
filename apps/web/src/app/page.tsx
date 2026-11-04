@@ -206,6 +206,26 @@ export default function HomePage() {
         {/* Скролл-история «Анатомия»: восемь деталей машины одна за другой */}
         <AnatomyStory />
 
+        {/* Витрина образцов: гербарный лист нивяника. */}
+        <section className="atlas-vitrine">
+          <div className="atlas-vitrine__text">
+            <h2 className="plate-label drip">Образец 1</h2>
+            <p className="mt-3 font-title text-2xl font-bold text-green">Нивяник обыкновенный</p>
+            <p className="plate-latin mt-1 text-lg">Leucanthemum vulgare</p>
+          </div>
+
+          <figure className="atlas-vitrine__plate">
+            <img
+              src="/images/oxeye-daisy.jpg"
+              alt="Гербарный лист нивяника обыкновенного: белый цветок с жёлтой сердцевиной, два бутона и зелёные листья на тёмном фоне"
+              width={760}
+              height={1018}
+              loading="lazy"
+              decoding="async"
+            />
+          </figure>
+        </section>
+
         {/* Переход к помощнику */}
         <section className="flex flex-col items-start justify-between gap-4 rounded-plate border border-hair bg-paper-hi px-6 py-5 sm:flex-row sm:items-center">
           <p className="max-w-xl leading-relaxed text-ink-2">

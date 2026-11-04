@@ -46,6 +46,44 @@
   color: var(--ink-3);
 }
 
+/* Витрина образцов: гербарный лист в раме и табличка, как в музее.
+   Лист — единственная картинка на сайте, поэтому он в раме, а не плашкой. */
+.atlas-vitrine {
+  display: grid;
+  gap: 1.25rem;
+  align-items: start;
+  padding-top: 2.5rem;
+  border-top: 1px solid var(--hair);
+}
+
+/* На широком экране табличка стоит слева, лист — сразу за ней, а вся пара
+   держится по центру страницы. */
+@media (min-width: 768px) {
+  .atlas-vitrine {
+    grid-template-columns: minmax(0, 19rem) auto;
+    gap: 2.5rem;
+    justify-content: center;
+  }
+}
+
+/* Рама: полоска бумаги под листом и мягкая тень от подставки. */
+.atlas-vitrine__plate {
+  margin: 0;
+  justify-self: start;
+  padding: 7px;
+  background: var(--paper);
+  border: 1px solid var(--hair-2);
+  box-shadow:
+    0 1px 0 var(--hair),
+    0 14px 28px -20px color-mix(in srgb, var(--ink) 45%, transparent);
+}
+
+.atlas-vitrine__plate img {
+  display: block;
+  width: clamp(8.5rem, 24vw, 12rem);
+  height: auto;
+}
+
 /* Калькулятор: иконка в круге + название + строка. */
 .atlas-calc {
   display: flex;
