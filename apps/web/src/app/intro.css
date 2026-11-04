@@ -1,396 +1,102 @@
-/* ==========================================================================
-   Заставка «Швейка» — пять сцен на чистом CSS/SVG.
-
-   Правила лежат вне @layer: заставка перекрывает страницу целиком и не
-   должна перебиваться слоями типографики.
-
-   Временная шкала (длительность совпадает с INTRO_DURATION_MS в
-   src/lib/intro.ts):
-     0.0–1.5 с  бумага
-     1.5–3.3 с  линия
-     3.3–5.0 с  выноски
-     5.0–5.9 с  титул
-     5.9–7.2 с  разворот
-   ========================================================================== */
-
+/* Короткий титульный лист: нить, выноски, название, разворот. */
 .intro-film {
-  /* Заставка — это оттиск на бумаге, а не часть интерфейса. Поэтому палитра
-     здесь своя, светлая: ночная таблица не должна превращать титульный лист
-     в чёрный прямоугольник. */
   --intro-paper: #f7f3e8;
   --intro-paper-hi: #fffdf6;
-  --intro-ink: #1e2b25;
   --intro-ink-2: #5a665f;
   --intro-green: #2e5f4a;
   --intro-thread: #c23b22;
   --intro-thread-2: #a33018;
   --intro-hair: rgba(30, 43, 37, 0.16);
   --intro-hair-2: rgba(30, 43, 37, 0.3);
-  --intro-wash-2: rgba(30, 43, 37, 0.09);
-  --intro-grid: rgba(30, 43, 37, 0.055);
-
   position: fixed;
   inset: 0;
   z-index: 60;
   display: grid;
   place-items: center;
   overflow: hidden;
-  background-color: var(--intro-paper);
-  /* Та же бумага с сеткой, что и под всем сайтом. */
-  background-image:
-    linear-gradient(to right, var(--intro-grid) 1px, transparent 1px),
-    linear-gradient(to bottom, var(--intro-grid) 1px, transparent 1px);
+  background: var(--intro-paper);
+  background-image: linear-gradient(to right, var(--intro-hair) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--intro-hair) 1px, transparent 1px);
   background-size: 120px 120px;
-  background-position: -1px -1px;
-  animation: intro-close 7200ms linear forwards;
+  animation: intro-close 1900ms linear forwards;
 }
-
-/* Заставку в этой сессии уже показывали — её нет вовсе. */
-html[data-intro="off"] .intro-film {
-  display: none;
-}
-
-.intro-stage {
-  position: relative;
-  display: grid;
-  place-items: center;
-}
-
-/* --- Сцена 1: бумага ------------------------------------------------------ */
-
-.intro-sheet {
-  width: min(72vw, 21rem);
-  height: auto;
-  transform-origin: left center;
-  animation: intro-paper 7200ms var(--ease-ink) forwards;
-}
-
-/* Лист под листом — тонкая подложка вместо тени. */
-.intro-sheet__back {
-  fill: var(--intro-wash-2);
-  transform: translate(5px, 6px);
-}
-
-.intro-sheet__paper {
-  fill: var(--intro-paper-hi);
-  stroke: var(--intro-hair-2);
-  stroke-width: 1;
-}
-
-.intro-sheet__rules line {
-  stroke: var(--intro-hair);
-  stroke-width: 1;
-}
-
-@keyframes intro-paper {
-  0% {
-    opacity: 0;
-    transform: translateY(22px) scale(0.94);
-  }
-  8% {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-  82% {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-  /* Разворот: лист уходит, как страница, перелистываемая налево. */
-  100% {
-    opacity: 0;
-    transform: perspective(900px) rotateY(-16deg) translateX(-9%) scale(1.04);
-  }
-}
-
-/* --- Сцена 2: линия ------------------------------------------------------- */
-
-/* Строчка рисуется слева направо: клип открывается по ходу нити. */
+html[data-intro="off"] .intro-film { display: none; }
+.intro-stage { position: relative; display: grid; place-items: center; }
+.intro-sheet { width: min(72vw, 21rem); height: auto; animation: intro-paper 1900ms var(--ease-ink) both; }
+.intro-sheet__back { fill: var(--intro-hair); transform: translate(5px, 6px); }
+.intro-sheet__paper { fill: var(--intro-paper-hi); stroke: var(--intro-hair-2); stroke-width: 1; }
+.intro-sheet__rules line { stroke: var(--intro-hair); stroke-width: 1; }
 .intro-stitch {
-  fill: none;
-  stroke: var(--intro-thread);
-  stroke-width: 3.2;
-  stroke-linecap: round;
-  stroke-dasharray: 7 9;
-  clip-path: inset(0 100% 0 0);
-  animation:
-    intro-draw 7200ms var(--ease-ink) forwards,
-    intro-march 1100ms linear infinite;
+  fill: none; stroke: var(--intro-thread); stroke-width: 3.2; stroke-dasharray: 7 9;
+  animation: intro-draw 1900ms var(--ease-ink) both;
 }
-
-@keyframes intro-draw {
-  0%,
-  21% {
-    clip-path: inset(0 100% 0 0);
-  }
-  46%,
-  100% {
-    clip-path: inset(0 0 0 0);
-  }
-}
-
-/* Стежки ползут по линии — машина шьёт. */
-@keyframes intro-march {
-  to {
-    stroke-dashoffset: -16;
-  }
-}
-
-/* --- Сцена 3: выноски ---------------------------------------------------- */
-
-.intro-callout--1 {
-  --d: 3300ms;
-}
-
-.intro-callout--2 {
-  --d: 3620ms;
-}
-
-.intro-callout--3 {
-  --d: 3940ms;
-}
-
+.intro-callout--1 { --d: 620ms; }
+.intro-callout--2 { --d: 730ms; }
+.intro-callout--3 { --d: 840ms; }
 .intro-callout__leader {
-  fill: none;
-  stroke: var(--intro-hair-2);
-  stroke-width: 1;
-  stroke-dasharray: 200;
-  stroke-dashoffset: 200;
-  animation: intro-leader 420ms linear forwards;
-  animation-delay: var(--d);
+  fill: none; stroke: var(--intro-hair-2); stroke-width: 1;
+  stroke-dasharray: 200; stroke-dashoffset: 200;
+  animation: intro-leader 220ms linear forwards; animation-delay: var(--d);
 }
-
-@keyframes intro-leader {
-  to {
-    stroke-dashoffset: 0;
-  }
+.intro-callout__dot, .intro-callout__ring, .intro-callout__num {
+  opacity: 0; animation: intro-fade 220ms linear forwards;
+  animation-delay: calc(var(--d) + 110ms);
 }
-
-.intro-callout__dot {
-  fill: var(--intro-thread);
-  opacity: 0;
-  animation: intro-pop 420ms var(--ease-ink) forwards;
-  animation-delay: calc(var(--d) + 260ms);
-}
-
-.intro-callout__ring {
-  fill: var(--intro-paper-hi);
-  stroke: var(--intro-hair-2);
-  stroke-width: 1;
-  opacity: 0;
-  animation: intro-pop 420ms var(--ease-ink) forwards;
-  animation-delay: calc(var(--d) + 260ms);
-}
-
+.intro-callout__dot { fill: var(--intro-thread); }
+.intro-callout__ring { fill: var(--intro-paper-hi); stroke: var(--intro-hair-2); stroke-width: 1; }
 .intro-callout__num {
-  font-family: var(--font-latin);
-  font-size: 11px;
-  fill: var(--intro-ink-2);
-  text-anchor: middle;
-  dominant-baseline: central;
-  opacity: 0;
-  animation: intro-pop 420ms var(--ease-ink) forwards;
-  animation-delay: calc(var(--d) + 260ms);
+  font-family: var(--font-latin); font-size: 11px; fill: var(--intro-ink-2);
+  text-anchor: middle; dominant-baseline: central;
 }
-
-@keyframes intro-pop {
-  0% {
-    opacity: 0;
-    transform: scale(0.5);
-  }
-  60% {
-    opacity: 1;
-    transform: scale(1.14);
-  }
-  100% {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-/* --- Сцена 4: титул ------------------------------------------------------- */
-
 .intro-title {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  align-content: center;
-  justify-items: center;
-  gap: 0.15rem;
-  text-align: center;
-  pointer-events: none;
-  animation: intro-title-out 1300ms var(--ease-ink) forwards;
-  animation-delay: 5900ms;
+  position: absolute; inset: 0; display: grid; align-content: center;
+  justify-items: center; gap: 0.15rem; text-align: center; pointer-events: none;
+  animation: intro-title-out 280ms var(--ease-ink) 1620ms both;
 }
-
 .intro-title__word {
-  margin: 0;
-  font-family: var(--font-title);
-  font-weight: 900;
-  font-size: clamp(2.6rem, 11vw, 4.6rem);
-  line-height: 1;
-  letter-spacing: -0.02em;
-  color: var(--intro-green);
-  /* Слово выписывается пером. */
-  clip-path: inset(0 100% 0 0);
-  animation: intro-write 900ms var(--ease-ink) forwards;
-  animation-delay: 5000ms;
+  margin: 0; font-family: var(--font-title); font-weight: 900;
+  font-size: clamp(2.6rem, 11vw, 4.6rem); line-height: 1;
+  letter-spacing: -0.02em; color: var(--intro-green);
+  animation: intro-write 430ms var(--ease-ink) 950ms both;
 }
-
-@keyframes intro-write {
-  from {
-    clip-path: inset(0 100% 0 0);
-  }
-  to {
-    clip-path: inset(0 0 0 0);
-  }
-}
-
 .intro-title__latin {
-  margin: 0;
-  font-family: var(--font-latin);
-  font-style: italic;
-  font-size: clamp(0.8rem, 2.6vw, 1.05rem);
-  letter-spacing: 0.1em;
-  color: var(--intro-ink-2);
-  opacity: 0;
-  animation: intro-fade 700ms linear forwards;
-  animation-delay: 5500ms;
+  margin: 0; font-family: var(--font-latin); font-style: italic;
+  font-size: clamp(0.8rem, 2.6vw, 1.05rem); letter-spacing: 0.1em;
+  color: var(--intro-ink-2); animation: intro-fade 300ms linear 1180ms both;
 }
-
-@keyframes intro-title-out {
-  from {
-    opacity: 1;
-    transform: translateY(0);
-  }
-  to {
-    opacity: 0;
-    transform: translateY(-22px);
-  }
-}
-
-@keyframes intro-fade {
-  to {
-    opacity: 1;
-  }
-}
-
-/* --- Сцена 5: разворот ---------------------------------------------------- */
-
-/* Заставка отпускает страницу в самом конце. */
-@keyframes intro-close {
-  0%,
-  82% {
-    opacity: 1;
-    pointer-events: auto;
-  }
-  100% {
-    opacity: 0;
-    pointer-events: none;
-  }
-}
-
-/* --- Управление ----------------------------------------------------------- */
-
 .intro-controls {
-  position: absolute;
-  left: 50%;
-  bottom: clamp(1.5rem, 7vh, 3rem);
-  transform: translateX(-50%);
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  opacity: 0;
-  animation: intro-fade 420ms linear forwards;
-  animation-delay: 600ms;
+  position: absolute; left: 50%; bottom: clamp(1.5rem, 7vh, 3rem);
+  transform: translateX(-50%); display: flex; align-items: center; gap: 0.6rem;
+  animation: intro-fade 180ms linear 180ms both;
 }
-
 .intro-btn {
-  font-family: var(--font-body);
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--intro-ink-2);
-  background: transparent;
-  border: 1px solid var(--intro-hair-2);
-  border-radius: var(--radius-plate);
-  padding: 0.5rem 0.85rem;
-  cursor: pointer;
-  transition:
-    color var(--t-ui) var(--ease-ink),
-    border-color var(--t-ui) var(--ease-ink),
+  font-family: var(--font-body); font-size: 0.72rem; font-weight: 700;
+  letter-spacing: 0.14em; text-transform: uppercase; color: var(--intro-ink-2);
+  background: transparent; border: 1px solid var(--intro-hair-2);
+  border-radius: var(--radius-plate); padding: 0.5rem 0.85rem; cursor: pointer;
+  transition: color var(--t-ui) var(--ease-ink), border-color var(--t-ui) var(--ease-ink),
     background-color var(--t-ui) var(--ease-ink);
 }
-
-.intro-btn:hover {
-  color: var(--intro-green);
-  border-color: var(--intro-green);
-  background: var(--intro-paper-hi);
+.intro-btn:hover { color: var(--intro-green); border-color: var(--intro-green); background: var(--intro-paper-hi); }
+.intro-skip { color: var(--intro-thread-2); border-color: var(--intro-thread-2); }
+.intro-skip:hover { background: var(--intro-paper-hi); }
+.intro-btn:focus-visible { outline: 2px dashed var(--intro-thread-2); outline-offset: 3px; }
+@keyframes intro-paper {
+  0% { opacity: 0; transform: translateY(12px) scale(.96); }
+  15%, 80% { opacity: 1; transform: none; }
+  100% { opacity: 0; transform: translateX(-9%); }
 }
-
-.intro-skip {
-  color: var(--intro-thread);
-  border-color: var(--intro-thread);
-}
-
-.intro-skip:hover {
-  color: var(--intro-thread-2);
-  border-color: var(--intro-thread-2);
-  background: var(--intro-paper-hi);
-}
-
-/* --- Бережное движение --------------------------------------------------- */
-
-/* Пользователь просил меньше движения: показываем конечный кадр сразу,
-   без рисования нити и без разворота листа. */
+@keyframes intro-draw { 0%, 18% { clip-path: inset(0 100% 0 0); } 58%, 100% { clip-path: inset(0); } }
+@keyframes intro-leader { to { stroke-dashoffset: 0; } }
+@keyframes intro-fade { to { opacity: 1; } }
+@keyframes intro-write { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0); } }
+@keyframes intro-title-out { to { opacity: 0; transform: translateY(-12px); } }
+@keyframes intro-close { 0%, 85% { opacity: 1; pointer-events: auto; } 100% { opacity: 0; pointer-events: none; } }
 @media (prefers-reduced-motion: reduce) {
-  .intro-film[data-reduced] {
-    animation: none !important;
-  }
-
-  .intro-film[data-reduced] .intro-sheet {
-    animation: none !important;
-    opacity: 0;
-  }
-
-  .intro-film[data-reduced] .intro-stitch {
-    animation: none !important;
-    clip-path: none !important;
-  }
-
-  .intro-film[data-reduced] .intro-title {
-    animation: none !important;
-    opacity: 1;
-  }
-
-  .intro-film[data-reduced] .intro-title__word {
-    animation: intro-fade 300ms linear both !important;
-    clip-path: none !important;
-  }
-
-  .intro-film[data-reduced] .intro-title__latin,
-  .intro-film[data-reduced] .intro-controls {
-    animation: none !important;
-    opacity: 1;
-  }
-
-  .intro-film[data-reduced] .intro-callout__dot,
-  .intro-film[data-reduced] .intro-callout__ring,
-  .intro-film[data-reduced] .intro-callout__num {
-    animation: none !important;
-    opacity: 0;
-  }
-
-  .intro-film[data-reduced] .intro-callout__leader {
-    animation: none !important;
-    stroke-dashoffset: 0;
-  }
+  .intro-film[data-reduced], .intro-film[data-reduced] * { animation: none !important; }
+  .intro-film[data-reduced] .intro-sheet { opacity: 0; }
+  .intro-film[data-reduced] .intro-title, .intro-film[data-reduced] .intro-controls,
+  .intro-film[data-reduced] .intro-title__latin { opacity: 1; }
+  .intro-film[data-reduced] .intro-title__word { clip-path: none; }
 }
-
-/* --- Печать -------------------------------------------------------------- */
-
-@media print {
-  .intro-film {
-    display: none !important;
-  }
-}
+@media print { .intro-film { display: none !important; } }

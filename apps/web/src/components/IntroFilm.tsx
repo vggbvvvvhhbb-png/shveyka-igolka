@@ -83,24 +83,34 @@ export function IntroFilm() {
   // серверный скрипт в layout.tsx. Это убирает мигание перед гидратацией.
   const [playing, setPlaying] = useState<boolean | null>(null);
   const [reduced, setReduced] = useState(false);
-  const [armed, setArmed] = useState(false);
   const [soundOn, setSoundOn] = useState(false);
 
   const soundRef = useRef<SoundHandle | null>(null);
+  const skipRef = useRef<HTMLButtonElement>(null);
+  const soundButtonRef = useRef<HTMLButtonElement>(null);
+  const returnFocusRef = useRef<HTMLElement | null>(null);
   const timersRef = useRef<number[]>([]);
+  const restoreOverflowRef = useRef<(() => void) | null>(null);
 
   const stopSound = useCallback(() => {
     soundRef.current?.stop();
     soundRef.current = null;
     setSoundOn(false);
   }, []);
-
   const finish = useCallback(() => {
     timersRef.current.forEach((id) => window.clearTimeout(id));
     timersRef.current = [];
     stopSound();
+    restoreOverflowRef.current?.();
+    restoreOverflowRef.current = null;
     document.documentElement.dataset.intro = "off";
     setPlaying(false);
+    if (
+      document.activeElement === skipRef.current ||
+      document.activeElement === soundButtonRef.current
+    ) {
+      returnFocusRef.current?.focus();
+    }
   }, [stopSound]);
 
   useBeforePaint(() => {
@@ -122,21 +132,31 @@ export function IntroFilm() {
     }
 
     document.documentElement.dataset.intro = "on";
+    returnFocusRef.current =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    window.requestAnimationFrame(() => skipRef.current?.focus());
 
     const isReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     setReduced(isReduced);
     setPlaying(true);
-    setArmed(isReduced);
 
     const previousOverflow = document.body.style.overflow;
+    restoreOverflowRef.current = () => {
+      document.body.style.overflow = previousOverflow;
+    };
     document.body.style.overflow = "hidden";
 
     const timers: number[] = [];
-    timers.push(window.setTimeout(finish, isReduced ? INTRO_REDUCED_MS : INTRO_DURATION_MS + 400));
+    timers.push(window.setTimeout(finish, isReduced ? INTRO_REDUCED_MS : INTRO_DURATION_MS + 100));
     timersRef.current = timers;
 
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") finish();
+      if (
+        event.key === "Escape" ||
+        ((event.key === "Enter" || event.key === " ") &&
+          !(event.target instanceof HTMLButtonElement))
+      )
+        finish();
     };
     window.addEventListener("keydown", onKeyDown);
 
@@ -144,9 +164,8 @@ export function IntroFilm() {
       window.removeEventListener("keydown", onKeyDown);
       timers.forEach((id) => window.clearTimeout(id));
       timersRef.current = [];
-      document.body.style.overflow = previousOverflow;
-      // Ушли со страницы, не досмотрев заставку: в этой сессии она уже
-      // не нужна, отметка в sessionStorage проставлена.
+      restoreOverflowRef.current?.();
+      restoreOverflowRef.current = null;
       document.documentElement.dataset.intro = "off";
     };
   }, [finish]);
@@ -236,21 +255,16 @@ export function IntroFilm() {
         </div>
       </div>
 
-      <div className="intro-controls" data-armed={armed ? "" : undefined}>
-        <button
-          type="button"
-          className="intro-btn intro-skip"
-          onClick={finish}
-          tabIndex={armed ? 0 : -1}
-        >
+      <div className="intro-controls">
+        <button ref={skipRef} type="button" className="intro-btn intro-skip" onClick={finish}>
           Пропустить →
         </button>
         <button
+          ref={soundButtonRef}
           type="button"
           className="intro-btn"
           onClick={toggleSound}
           aria-pressed={soundOn}
-          tabIndex={armed ? 0 : -1}
         >
           {soundOn ? "Звук: вкл" : "Звук: выкл"}
         </button>

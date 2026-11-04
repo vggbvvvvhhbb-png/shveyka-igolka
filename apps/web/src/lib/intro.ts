@@ -13,7 +13,7 @@ export const INTRO_SEEN_KEY = "shveyka-intro-seen";
  * Должна совпадать с длиной анимаций в app/intro.css — иначе страница
  * отпустит зрителя раньше, чем дорисуется.
  */
-export const INTRO_DURATION_MS = 7200;
+export const INTRO_DURATION_MS = 1900;
 
 /** Длительность заставки при prefers-reduced-motion: только конечный кадр. */
 export const INTRO_REDUCED_MS = 1500;
