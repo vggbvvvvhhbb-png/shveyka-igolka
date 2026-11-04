@@ -88,4 +88,24 @@ describe("мерки в боте", () => {
 
     expect(bot.last()).toContain("Сайт сейчас недоступен");
   });
+
+  it("закрытые мерки: говорит про ключ владельца", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({
+        ok: false,
+        status: 401,
+        json: async () => ({ error: "Эти данные доступны только владельцу." }),
+      }))
+    );
+
+    const bot = createBot();
+    await startWizard(bot.ctx, measureWizard, { bust: 0, waist: 0, hip: 0, height: 0 });
+    await bot.say("92");
+    await bot.say("74");
+    await bot.say("98");
+    await bot.say("164");
+
+    expect(bot.last()).toContain("ключом владельца");
+  });
 });

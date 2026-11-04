@@ -9,6 +9,7 @@
  */
 
 import type { MeasurementsInput } from "@shveyka/core";
+import { OWNER_COOKIE } from "@shveyka/core";
 import { config } from "../config";
 import { esc } from "../lib/html";
 import { sendHtml } from "../lib/reply";
@@ -17,6 +18,7 @@ import { startWizard, type Wizard } from "../wizard";
 
 const REQUEST_TIMEOUT_MS = 8000;
 const UNAVAILABLE = "Сайт сейчас недоступен, попробуйте позже.";
+const CLOSED = "Мерки на сайте закрыты ключом владельца. Бот должен знать его.";
 
 /** Метка мерки в отчёте. */
 const LABELS: Record<keyof MeasurementsInput, string> = {
@@ -32,11 +34,28 @@ const FIELDS: (keyof MeasurementsInput)[] = ["bust", "waist", "hip", "height"];
 /** Значение, которым помечается пропущенный вопрос. */
 const SKIPPED = 0;
 
+/**
+ * Заголовки запроса к сайту.
+ *
+ * Мерки на сайте закрыты замком владельца: без ключа сайт отвечает 401.
+ * Ключ у бота есть в переменной окружения.
+ */
+function headers(): Record<string, string> {
+  return config.ownerKey
+    ? {
+        "Content-Type": "application/json",
+        Cookie: `${OWNER_COOKIE}=${encodeURIComponent(config.ownerKey)}`,
+      }
+    : { "Content-Type": "application/json" };
+}
+
 /** Текущие мерки с сайта. */
 async function fetchMeasurements(): Promise<Partial<MeasurementsInput>> {
   const res = await fetch(`${config.webApiUrl}/api/measurements`, {
+    headers: headers(),
     signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   });
+  if (res.status === 401) throw new Error("closed");
   if (!res.ok) throw new Error("measurements unavailable");
   const data = (await res.json()) as { measurements?: Partial<MeasurementsInput> | null };
   return data.measurements ?? {};
@@ -45,6 +64,15 @@ async function fetchMeasurements(): Promise<Partial<MeasurementsInput>> {
 /** Текст: записанное значение или прочерк. */
 function current(value: number | undefined): string {
   return value && value > 0 ? `${value} см` : "не записано";
+}
+
+/** Что сказать, когда мерки не пришли. */
+async function explainFailure(ctx: MyContext, err: unknown): Promise<void> {
+  if (err instanceof Error && err.message === "closed") {
+    await ctx.reply(CLOSED);
+    return;
+  }
+  await ctx.reply(UNAVAILABLE);
 }
 
 /**
@@ -72,8 +100,8 @@ export const measureWizard: Wizard = {
     let previous: Partial<MeasurementsInput> = {};
     try {
       previous = await fetchMeasurements();
-    } catch {
-      await ctx.reply(UNAVAILABLE);
+    } catch (err) {
+      await explainFailure(ctx, err);
       return;
     }
 
@@ -91,10 +119,14 @@ export const measureWizard: Wizard = {
     try {
       const res = await fetch(`${config.webApiUrl}/api/measurements`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: headers(),
         body: JSON.stringify(payload),
         signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       });
+      if (res.status === 401) {
+        await ctx.reply(CLOSED);
+        return;
+      }
       if (!res.ok) {
         await ctx.reply("Не удалось сохранить мерки, попробуйте позже.");
         return;
@@ -124,8 +156,8 @@ export async function startMeasure(ctx: MyContext): Promise<void> {
   let previous: Partial<MeasurementsInput> = {};
   try {
     previous = await fetchMeasurements();
-  } catch {
-    await ctx.reply(UNAVAILABLE);
+  } catch (err) {
+    await explainFailure(ctx, err);
     return;
   }
 
