@@ -268,3 +268,38 @@ export const sewnItems = pgTable(
   },
   (table) => [index("sewn_items_sewn_at_idx").on(table.sewn_at)]
 );
+
+// ============================================================================
+// CONTACT REQUESTS
+// ============================================================================
+
+/**
+ * Обращения через форму на сайте: предложения, жалобы и вопросы владельцу.
+ *
+ * Письмо уходит на почту владельца, но остаётся и в базе: если почта не
+ * настроена или письмо затерялось, обращение всё равно можно прочитать и
+ * ответить.
+ */
+export const contactRequests = pgTable(
+  "contact_requests",
+  {
+    id: text("id").primaryKey(),
+    /** Тема обращения: suggestion, problem, bug, question, other. */
+    topic: text("topic").notNull(),
+    /** Как обращаться к человеку. Может быть пустым. */
+    name: text("name"),
+    /** Почта или телеграм для ответа. Может быть пустым. */
+    contact: text("contact"),
+    /** Текст обращения. */
+    message: text("message").notNull(),
+    /** Страница сайта, с которой пришло обращение. */
+    page: text("page"),
+    /** Отправлено ли письмо на почту владельца. */
+    emailed: boolean("emailed").notNull().default(false),
+    created_at: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("contact_requests_created_at_idx").on(table.created_at),
+    index("contact_requests_topic_idx").on(table.topic),
+  ]
+);

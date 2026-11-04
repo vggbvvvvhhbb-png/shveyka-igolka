@@ -13,4 +13,5 @@ export * from "./conversations";
 export * from "./measurements";
 export * from "./feedback";
 export * from "./sewn";
+export * from "./contacts";
 export * from "./matchData";
