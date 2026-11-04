@@ -32,7 +32,8 @@
 
 /* Шаги «С чего начать»: номер в старой засечной цифрой. */
 .atlas-step {
-  display: flex;
+  display: grid;
+  grid-template-columns: 5.7rem minmax(0, 1fr);
   gap: 0.5rem;
   font-size: 0.85rem;
   line-height: 1.55;
@@ -40,10 +41,10 @@
 }
 
 .atlas-step__num {
-  flex: none;
+  white-space: nowrap;
   font-family: var(--font-latin);
   font-style: italic;
-  color: var(--ink-3);
+  color: var(--ink-2);
 }
 
 /* Витрина образцов: гербарный лист в раме и табличка, как в музее.

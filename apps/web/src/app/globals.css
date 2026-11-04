@@ -70,7 +70,7 @@
   --paper-hi: #fffdf6;
   --ink: #1e2b25;
   --ink-2: #5a665f;
-  --ink-3: #8b938d;
+  --ink-3: #657068;
 
   --green: #2e5f4a;
   --green-2: #24493a;
@@ -96,7 +96,7 @@
     --paper-hi: light-dark(#fffdf6, #17231d);
     --ink: light-dark(#1e2b25, #e9e5d9);
     --ink-2: light-dark(#5a665f, #a9b2aa);
-    --ink-3: light-dark(#8b938d, #7d867f);
+    --ink-3: light-dark(#657068, #89968c);
 
     --green: light-dark(#2e5f4a, #93c3ad);
     --green-2: light-dark(#24493a, #b0d7c4);
@@ -104,7 +104,7 @@
     --gold: light-dark(#e8be4a, #e8be4a);
     --gold-wash: light-dark(#f3dc8e, #4a3d18);
     --orange: light-dark(#e58a2b, #e5924a);
-    --thread: light-dark(#c23b22, #d9573d);
+    --thread: light-dark(#c23b22, #e5735a);
     --thread-2: light-dark(#a33018, #e5735a);
 
     --hair: light-dark(rgba(30, 43, 37, 0.16), rgba(233, 229, 217, 0.16));
@@ -122,6 +122,12 @@
 
 :root[data-theme="day"] {
   color-scheme: light;
+}
+
+/* Светлый акцент ночной таблицы: тёмные чернила на заполненных кнопках. */
+:root[data-theme="night"] .bg-thread.text-paper-hi,
+:root[data-theme="night"] .bg-green.text-paper-hi {
+  color: var(--paper);
 }
 
 /* --- 3. Типика и бумага --------------------------------------------------- */
@@ -194,8 +200,8 @@
   }
 
   :focus-visible {
-    outline: 2px dashed var(--thread);
-    outline-offset: 2px;
+    outline: 2px dashed var(--thread-2);
+    outline-offset: 3px;
   }
 }
 
