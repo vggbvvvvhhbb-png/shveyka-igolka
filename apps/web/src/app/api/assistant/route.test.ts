@@ -17,6 +17,7 @@ const mocks = vi.hoisted(() => ({
   saveUserTurn: vi.fn(),
   saveAssistantTurn: vi.fn(),
   limitRequest: vi.fn(),
+  recordUsage: vi.fn(),
 }));
 
 vi.mock("@shveyka/core/ai/pipeline", () => ({
@@ -30,6 +31,7 @@ vi.mock("@shveyka/db", () => ({
     findContextEntry: mocks.findContextEntry,
     getConversation: mocks.getConversation,
     listMessages: mocks.listMessages,
+    recordUsage: mocks.recordUsage,
   },
 }));
 
@@ -66,6 +68,7 @@ const PIPELINE_RESULT = {
   steps: ["Ищу в интернете", "Собираю ответ"],
   model: "free/gpt-6-luna",
   degraded: null,
+  usage: { promptTokens: 900, completionTokens: 300, totalTokens: 1200 },
 };
 
 function assistantRequest(body: unknown): Request {
@@ -236,5 +239,30 @@ describe("POST /api/assistant", () => {
 
     expect(res.status).toBe(429);
     expect(mocks.runPipeline).not.toHaveBeenCalled();
+  });
+
+  it("расход токенов записывается вместе с режимом", async () => {
+    const POST = await loadRoute();
+    await POST(assistantRequest({ message: "какая игла", mode: "search", style: "short" }));
+
+    expect(mocks.recordUsage).toHaveBeenCalledTimes(1);
+    const entry = mocks.recordUsage.mock.calls[0][1] as {
+      feature: string;
+      mode: string | null;
+      source: string;
+      totalTokens: number;
+    };
+    expect(entry.feature).toBe("search");
+    expect(entry.mode).toBe("short");
+    expect(entry.source).toBe("web");
+    expect(entry.totalTokens).toBe(1200);
+  });
+
+  it("ошибка записи расхода не ломает ответ", async () => {
+    mocks.recordUsage.mockRejectedValue(new Error("таблицы нет"));
+    const POST = await loadRoute();
+    const res = await POST(assistantRequest({ message: "какая игла", mode: "search" }));
+
+    expect(res.status).toBe(200);
   });
 });

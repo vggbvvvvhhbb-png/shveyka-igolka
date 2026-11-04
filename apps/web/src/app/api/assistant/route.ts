@@ -23,7 +23,7 @@ import { clientIp, limitRequest } from "@/lib/guard";
 import { requestIsOwner } from "@/lib/owner";
 import { loadCatalog, poolOf } from "@/lib/catalog";
 import { saveAssistantTurn, saveUserTurn } from "@/lib/chatHistory";
-import { resolveUsageUser } from "@/lib/usage";
+import { resolveUsageUser, recordUsageSafe } from "@/lib/usage";
 
 export const dynamic = "force-dynamic";
 
@@ -192,17 +192,19 @@ export async function POST(req: Request): Promise<Response> {
     }
 
     // Расход токенов режима: планировщик поиска плюс ответ модели.
-    await queries.recordUsage(db, {
+    // Счётчика может не быть: провайдер его не прислал.
+    const spent = result.usage;
+    await recordUsageSafe(db, {
       userKey: usageUser.userKey,
       userLabel: usageUser.userLabel,
       source: usageUser.source,
       feature: mode,
       mode: style ?? null,
       model: result.model,
-      promptTokens: result.usage.promptTokens,
-      completionTokens: result.usage.completionTokens,
-      totalTokens: result.usage.totalTokens,
-      estimated: result.usage.totalTokens === 0,
+      promptTokens: spent?.promptTokens ?? 0,
+      completionTokens: spent?.completionTokens ?? 0,
+      totalTokens: spent?.totalTokens ?? 0,
+      estimated: !spent || spent.totalTokens === 0,
       conversationId: savedId,
     });
 

@@ -10,6 +10,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   searchContext: vi.fn(),
   findContextEntry: vi.fn(),
+  recordUsage: vi.fn(),
   /** Ответ на вопрос «это владелец?» — переключается в тесте. */
   isOwner: false,
 }));
@@ -19,6 +20,7 @@ vi.mock("@shveyka/db", () => ({
   queries: {
     searchContext: mocks.searchContext,
     findContextEntry: mocks.findContextEntry,
+    recordUsage: mocks.recordUsage,
   },
 }));
 
@@ -159,6 +161,47 @@ describe("POST /api/chat", () => {
 
     expect(vi.mocked(fetch)).toHaveBeenCalledTimes(1);
     expect(text).toBe("Готово.");
+  });
+
+  it("расход токенов записывается: первый ответ — работа модели, второй — кэш", async () => {
+    vi.mocked(fetch).mockImplementation(async () => providerResponse("Готово."));
+    // Свой вопрос: кэш ответов общий для процесса, и вопрос из прошлого
+    // теста уже лежит в нём.
+    const question = "Какая игла для джинсы со стопором?";
+
+    const POST = await loadRoute();
+    await (await POST(chatRequest(question))).text();
+    await (await POST(chatRequest(question))).text();
+
+    expect(mocks.recordUsage).toHaveBeenCalledTimes(2);
+
+    const first = mocks.recordUsage.mock.calls[0][1] as {
+      feature: string;
+      source: string;
+      cached: boolean;
+      totalTokens: number;
+    };
+    expect(first.feature).toBe("catalog");
+    expect(first.source).toBe("web");
+    // Ответ из модели: флаг «из кэша» не ставится.
+    expect(first.cached ?? false).toBe(false);
+    expect(first.totalTokens).toBeGreaterThan(0);
+
+    const second = mocks.recordUsage.mock.calls[1][1] as { cached: boolean; totalTokens: number };
+    expect(second.cached).toBe(true);
+    expect(second.totalTokens).toBe(0);
+  });
+
+  it("ошибка записи расхода не ломает ответ", async () => {
+    vi.mocked(fetch).mockImplementation(async () => providerResponse("Готово."));
+    mocks.recordUsage.mockRejectedValue(new Error("таблицы нет"));
+
+    const POST = await loadRoute();
+    const res = await POST(chatRequest("Какая игла для джинсы?"));
+    const text = await res.text();
+
+    expect(res.status).toBe(200);
+    expect(text).toContain("Готово.");
   });
   // Импорт маршрута тянет рантайм Next.js и весь баррель ядра: под нагрузкой
   // (сразу все пакеты) импорт занимает несколько секунд, и стандартных пяти
