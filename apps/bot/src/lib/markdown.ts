@@ -40,22 +40,22 @@ const INTERNAL = /^\/(?:fabrics|seams|projects)\/[a-z0-9-]+$/;
  * Внутренние ссылки становятся полными адресами сайта, внешние остаются
  * как есть. Остальное (javascript:, data:) в ссылку не попадает.
  */
-function safeHref(href: string): string | null {
+function safeHref(href: string, baseUrl: string): string | null {
   if (INTERNAL.test(href)) {
-    return config.siteUrl ? `${config.siteUrl}${href}` : null;
+    return baseUrl ? `${baseUrl}${href}` : null;
   }
   if (href.startsWith("https://") || href.startsWith("http://")) return href;
   return null;
 }
 
 /** Переводит куски текста внутри абзаца. */
-function inlineToHtml(text: string): string {
+function inlineToHtml(text: string, baseUrl: string): string {
   const escaped = esc(text);
   return escaped.replace(INLINE, (whole, bold, code, linkText, linkHref, italic) => {
     if (bold !== undefined) return `<b>${bold}</b>`;
     if (code !== undefined) return `<code>${code}</code>`;
     if (linkText !== undefined && linkHref !== undefined) {
-      const href = safeHref(linkHref);
+      const href = safeHref(linkHref, baseUrl);
       return href ? `<a href="${href}">${linkText}</a>` : linkText;
     }
     if (italic !== undefined) return `<i>${italic}</i>`;
@@ -68,8 +68,11 @@ function inlineToHtml(text: string): string {
  *
  * Пустые строки между блоками сохраняются: так ответ читается так же, как
  * на сайте.
+ *
+ * baseUrl — адрес сайта: внутренние ссылки каталога без него показать
+ * нельзя, в телеграме путь не открывается.
  */
-export function markdownToTelegramHtml(markdown: string): string {
+export function markdownToTelegramHtml(markdown: string, baseUrl: string = config.siteUrl): string {
   const lines = markdown.split("\n");
   const out: string[] = [];
 
@@ -83,23 +86,23 @@ export function markdownToTelegramHtml(markdown: string): string {
 
     const heading = HEADING.exec(line);
     if (heading) {
-      out.push(`<b>${inlineToHtml(heading[2])}</b>`);
+      out.push(`<b>${inlineToHtml(heading[2], baseUrl)}</b>`);
       continue;
     }
 
     const bullet = BULLET.exec(line);
     if (bullet) {
-      out.push(`• ${inlineToHtml(bullet[1])}`);
+      out.push(`• ${inlineToHtml(bullet[1], baseUrl)}`);
       continue;
     }
 
     const ordered = ORDERED.exec(line);
     if (ordered) {
-      out.push(`${ordered[1]}. ${inlineToHtml(ordered[2])}`);
+      out.push(`${ordered[1]}. ${inlineToHtml(ordered[2], baseUrl)}`);
       continue;
     }
 
-    out.push(inlineToHtml(line));
+    out.push(inlineToHtml(line, baseUrl));
   }
 
   // Подряд идущие пустые строки схлопываются: в телеграме они лишние.

@@ -30,10 +30,15 @@ describe("перевод ответа помощника в разметку т�
   });
 
   it("внутреннюю ссылку каталога делает полным адресом сайта", () => {
-    const html = markdownToTelegramHtml("[Лён](/fabrics/linen-natural)");
-    expect(html).toContain("<a href=");
-    expect(html).toContain("/fabrics/linen-natural");
-    expect(html).not.toContain('href="/fabrics');
+    const html = markdownToTelegramHtml(
+      "[Лён](/fabrics/linen-natural)",
+      "https://shveyka-igolka.ru"
+    );
+    expect(html).toBe('<a href="https://shveyka-igolka.ru/fabrics/linen-natural">Лён</a>');
+  });
+
+  it("внутреннюю ссылку без адреса сайта оставляет текстом", () => {
+    expect(markdownToTelegramHtml("[Лён](/fabrics/linen-natural)", "")).toBe("Лён");
   });
 
   it("опасную ссылку оставляет текстом", () => {

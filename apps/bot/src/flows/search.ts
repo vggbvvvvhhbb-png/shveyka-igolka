@@ -70,15 +70,19 @@ async function showResults(ctx: MyContext, query: string): Promise<void> {
 
   const kb = new InlineKeyboard();
   let buttons = 0;
-  for (const [kind, items] of [
-    ["fabrics", fabrics],
-    ["seams", seams],
-    ["projects", projects],
-  ] as const) {
-    for (const item of items) {
-      if (buttons >= MAX_BUTTONS) break;
-      kb.url(`${KIND_ICON[kind]} ${item.name}`, itemUrl(kind, item.slug));
-      buttons += 1;
+  // Кнопка-ссылка в телеграме требует полный адрес: без адреса сайта
+  // кнопок с записями не будет, останутся подписи в тексте.
+  if (config.siteUrl) {
+    for (const [kind, items] of [
+      ["fabrics", fabrics],
+      ["seams", seams],
+      ["projects", projects],
+    ] as const) {
+      for (const item of items) {
+        if (buttons >= MAX_BUTTONS) break;
+        kb.url(`${KIND_ICON[kind]} ${item.name}`, itemUrl(kind, item.slug));
+        buttons += 1;
+      }
     }
   }
   if (config.siteUrl) {
